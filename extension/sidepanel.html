@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-rail="expanded">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Timoraft</title>
+    <link rel="stylesheet" href="assets/app.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <aside class="rail">
+        <div class="brand" aria-label="Timoraft">
+          <img src="icons/timoraft.svg" alt="" />
+          <div><strong>timoraft</strong><span>shape your week</span></div>
+          <button id="railToggle" class="rail-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 7-5 5 5 5" /></svg>
+          </button>
+        </div>
+        <nav class="nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="builder" aria-label="Builder" title="Builder"><span class="nav-index">01</span><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="16" rx="2" /><path d="M8 2.5v4M16 2.5v4M3.5 9h17M8 13h3M13 13h3M8 17h3" /></svg><span class="nav-label">Builder</span></button>
+          <button class="nav-item" data-view="merge" aria-label="Merge lab" title="Merge lab"><span class="nav-index">02</span><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z" /><path d="m4 12 8 4.5 8-4.5M4 16.5 12 21l8-4.5" /></svg><span class="nav-label">Merge lab</span></button>
+          <button class="nav-item" data-view="wallpaper" aria-label="Wallpaper" title="Wallpaper"><span class="nav-index">03</span><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5" /><circle cx="9" cy="9" r="1.7" /><path d="m5.5 18 4.2-4.2 2.8 2.6 2.7-3.2 3.3 4.8" /></svg><span class="nav-label">Wallpaper</span></button>
+          <button class="nav-item" data-view="library" aria-label="Library" title="Library"><span class="nav-index">04</span><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v15H4zM3 3.5h18M8 9h8" /></svg><span class="nav-label">Library</span></button>
+        </nav>
+        <div class="rail-foot">
+          <div class="privacy-dot"><i></i>Saved on this device</div>
+          <button id="themeToggle" class="icon-button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div><p class="eyebrow" id="viewEyebrow">Schedule studio</p><h1 id="viewTitle">Build your week</h1></div>
+          <div class="top-actions">
+            <span id="saveStatus" class="save-status">All changes saved</span>
+            <button id="hubButton" class="button ghost">Sync from Hub</button>
+            <button id="saveCurrentButton" class="button primary">Save schedule</button>
+          </div>
+        </header>
+
+        <section id="builderView" class="view active">
+          <div class="builder-layout">
+            <aside class="course-panel panel">
+              <div class="panel-head">
+                <div><p class="eyebrow">Course stack</p><h2>Your courses</h2></div>
+                <button id="addCourseButton" class="icon-button solid" aria-label="Add course" title="Add course">+</button>
+              </div>
+              <label class="search"><span>⌕</span><input id="courseSearch" type="search" placeholder="Search courses" /></label>
+              <div class="selection-toolbar" aria-label="Section selection controls">
+                <span id="sectionSelectionCount">0 of 0 sections selected</span>
+                <div><button id="selectAllSections" type="button" class="text-button">Select all</button><button id="clearAllSections" type="button" class="text-button">Deselect all</button></div>
+              </div>
+              <div id="hubSyncRow" class="hub-sync-row" hidden>
+                <span id="hubSyncText">Hub courses not synced yet</span>
+                <button id="refreshHubCourses" type="button" class="tiny-button refresh-button" aria-label="Refresh Archer's Hub courses" title="Refresh Archer's Hub courses">↻</button>
+              </div>
+              <div id="courseList" class="course-list"></div>
+              <div class="panel-foot">
+                <span><b id="courseCount">0</b> courses</span>
+                <button id="resetDemoButton" class="text-button">Restore sample</button>
+              </div>
+            </aside>
+
+            <div class="calendar-panel panel">
+              <div class="calendar-toolbar">
+                <div class="schedule-pager">
+                  <button id="prevSchedule" class="icon-button" aria-label="Previous schedule">←</button>
+                  <div><b id="scheduleNumber">Schedule 1</b><span id="scheduleCount">of 1 combination</span></div>
+                  <button id="nextSchedule" class="icon-button" aria-label="Next schedule">→</button>
+                </div>
+                <div class="toolbar-actions">
+                  <label class="switch"><input id="sundayToggle" type="checkbox" /><span></span>Sunday</label>
+                  <button id="viewOptionsButton" class="button ghost">View options</button>
+                  <button id="shuffleButton" class="button ghost">Shuffle</button>
+                </div>
+              </div>
+              <div id="summaryStrip" class="summary-strip"></div>
+              <div id="calendar" class="calendar-wrap"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="mergeView" class="view">
+          <div class="merge-layout">
+            <aside class="merge-controls panel">
+              <p class="eyebrow">Double exposure</p><h2>Blend two schedules</h2>
+              <p class="muted">Compare two people on one grid. Simultaneous classes use separate lanes; only clashes inside the same saved schedule are flagged.</p>
+              <label class="field">Schedule A<select id="mergeA"></select></label>
+              <label class="color-field"><span>Schedule A color</span><input id="mergeColorA" type="color" value="#ff6b55" /></label>
+              <label class="field">Schedule B<select id="mergeB"></select></label>
+              <label class="color-field"><span>Schedule B color</span><input id="mergeColorB" type="color" value="#6ee7c2" /></label>
+              <label class="switch wide"><input id="mergeSunday" type="checkbox" /><span></span>Show Sunday</label>
+              <div id="mergeStats" class="merge-stats"></div>
+              <button id="saveMergeButton" class="button primary full">Save merged view</button>
+            </aside>
+            <div class="merge-canvas panel">
+              <div class="canvas-head"><div><p class="eyebrow">Combined canvas</p><h2 id="mergeTitle">Choose two schedules</h2></div><div id="mergeLegend" class="legend"></div></div>
+              <div id="mergeCalendar" class="calendar-wrap"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="wallpaperView" class="view">
+          <div class="wallpaper-layout">
+            <aside class="wallpaper-controls panel">
+              <p class="eyebrow">Wallpaper</p><h2>Design your week</h2>
+              <label class="field">Schedule<select id="wallpaperSchedule"></select></label>
+              <label class="field">Title<input id="wallpaperTitle" value="MY WEEK" maxlength="36" /></label>
+              <label class="field">Subtitle<input id="wallpaperSubtitle" value="Fall term" maxlength="52" /></label>
+              <div class="two-fields">
+                <label class="field">Ratio<select id="wallpaperRatio"><option value="16:9">Desktop 16:9</option><option value="9:16">Phone 9:16</option><option value="9:19.5">Tall phone 9:19.5</option><option value="9:21">Extra-tall phone 9:21</option><option value="4:3">Tablet 4:3</option><option value="1:1">Square</option></select></label>
+                <label class="field">Layout<select id="wallpaperLayout"><option value="board">Week board</option><option value="split">Split week</option><option value="agenda">Daily agenda</option><option value="timeline">Time grid</option><option value="compact-grid">Compact timetable</option><option value="neon-grid">Neon weekly grid</option><option value="pastel-grid">Pastel dark grid</option></select></label>
+              </div>
+              <div class="two-fields">
+                <label class="field">Typeface<select id="wallpaperFont"><option value="neo">Clean sans</option><option value="aptos">Aptos display</option><option value="geometric">Geometric sans</option><option value="condensed">Condensed display</option><option value="humanist">Humanist sans</option><option value="editorial">Editorial serif</option><option value="classic">Classic serif</option><option value="literary">Garamond</option><option value="rounded">Soft rounded</option><option value="mono">Technical mono</option></select></label>
+                <label class="field">Card style<select id="wallpaperCardStyle"><option value="soft">Soft surface</option><option value="solid">Course color</option><option value="outline">Fine outline</option></select></label>
+              </div>
+              <label class="field">Color set<select id="wallpaperPalette"><option value="paper">Paper &amp; ink</option><option value="coast">Quiet coast</option><option value="sage">Soft sage</option><option value="clay">Warm clay</option><option value="night">Night blue</option><option value="mono">Monochrome</option><option value="custom">Custom</option></select></label>
+              <div class="color-editors">
+                <label class="color-editor"><span>Background one</span><div><input id="wallpaperBgA" type="color" value="#f2f0e9" aria-label="Choose background color one" /><input id="wallpaperBgACode" class="color-code" value="#F2F0E9" maxlength="7" spellcheck="false" aria-label="Background color one hex code" /></div></label>
+                <label class="color-editor"><span>Background two</span><div><input id="wallpaperBgB" type="color" value="#d8e0d4" aria-label="Choose background color two" /><input id="wallpaperBgBCode" class="color-code" value="#D8E0D4" maxlength="7" spellcheck="false" aria-label="Background color two hex code" /></div></label>
+                <label class="color-editor"><span>Text color</span><div><input id="wallpaperTextColor" type="color" value="#20211f" aria-label="Choose wallpaper text color" /><input id="wallpaperTextColorCode" class="color-code" value="#20211F" maxlength="7" spellcheck="false" aria-label="Wallpaper text color hex code" /></div></label>
+              </div>
+              <div id="phoneLayoutControls" class="phone-layout-controls" hidden>
+                <label class="field">Lock-screen clock space <output id="clockSpaceOutput">30%</output><input id="wallpaperClockSpace" type="range" min="0" max="44" value="30" /></label>
+                <p>Keep the top clear for the phone clock and notifications. Set to 0% for a regular wallpaper.</p>
+              </div>
+              <label class="field">Content scale <output id="contentScaleOutput">100%</output><input id="wallpaperContentScale" type="range" min="70" max="115" value="100" /></label>
+              <label class="field">Gradient angle <output id="angleOutput">135°</output><input id="wallpaperAngle" type="range" min="0" max="360" value="135" /></label>
+              <label class="field">Card opacity <output id="opacityOutput">92%</output><input id="wallpaperOpacity" type="range" min="35" max="100" value="92" /></label>
+              <label class="field">Corner radius <output id="radiusOutput">12px</output><input id="wallpaperRadius" type="range" min="0" max="28" value="12" /></label>
+              <div class="image-color-panel">
+                <label class="field file-field">Background image<input id="wallpaperImage" type="file" accept="image/*" /></label>
+                <div class="palette-target" aria-label="Image palette target">
+                  <span>Apply picked color to</span>
+                  <label><input type="radio" name="paletteTarget" value="bgA" checked /> One</label>
+                  <label><input type="radio" name="paletteTarget" value="bgB" /> Two</label>
+                </div>
+                <div id="imagePalette" class="image-palette" aria-label="Colors extracted from uploaded image"><span class="palette-empty">Upload an image to sample its colors.</span></div>
+                <button id="removeWallpaperImage" type="button" class="text-button">Remove background image</button>
+              </div>
+              <div class="checks">
+                <label><input id="wallpaperTimes" type="checkbox" checked /> Times</label>
+                <label><input id="wallpaperRooms" type="checkbox" checked /> Rooms</label>
+                <label><input id="wallpaperProfessors" type="checkbox" /> Professors</label>
+                <label><input id="wallpaperBreaks" type="checkbox" checked /> Break lengths</label>
+                <label><input id="wallpaperSunday" type="checkbox" /> Sunday</label>
+                <label><input id="wallpaperWatermark" type="checkbox" checked /> Timoraft mark</label>
+              </div>
+              <details class="wallpaper-text-tools">
+                <summary>Edit schedule text</summary>
+                <p>Edit each meeting separately, including its day, time, room or online mode, and professor. Changes apply only to the wallpaper.</p>
+                <div id="wallpaperTextEditor" class="wallpaper-text-editor"></div>
+                <button id="resetWallpaperText" type="button" class="text-button">Restore schedule text</button>
+              </details>
+              <div class="button-row"><button id="resetWallpaper" class="button ghost">Reset</button><button id="downloadWallpaper" class="button primary">Download PNG</button></div>
+            </aside>
+            <div class="wallpaper-stage"><div id="wallpaperPreview" class="wallpaper-preview"></div></div>
+          </div>
+        </section>
+
+        <section id="libraryView" class="view">
+          <div class="library-head"><div><p class="eyebrow">Local archive</p><h2>Saved schedules</h2><p class="muted">Everything here stays in browser storage.</p></div><div class="button-row"><label class="button ghost file-button">Import JSON<input id="importJson" type="file" accept="application/json" /></label><button id="exportJson" class="button ghost">Export backup</button></div></div>
+          <div id="libraryGrid" class="library-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="courseDialog" class="modal" closedby="any" aria-labelledby="courseDialogTitle">
+      <form id="courseForm" method="dialog">
+        <div class="modal-head"><div><p class="eyebrow">Course editor</p><h2 id="courseDialogTitle">Add a course</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close course editor">×</button></div>
+        <button id="searchHubFromEditor" type="button" class="button hub-shortcut">Search and add from Archer's Hub instead</button>
+        <div class="form-grid">
+          <label class="field">Course code<input id="courseCode" required placeholder="e.g. CCPROG3" /></label>
+          <label class="field">Course title<input id="courseTitle" required placeholder="Programming with data structures" /></label>
+          <label class="field">Section<input id="courseSection" required placeholder="S11" /></label>
+          <label class="field">Units<input id="courseUnits" type="number" min="0" max="12" step="0.5" value="3" required /></label>
+          <label class="field">Day<select id="courseDay"><option value="M">Monday</option><option value="T">Tuesday</option><option value="W">Wednesday</option><option value="H">Thursday</option><option value="F">Friday</option><option value="S">Saturday</option><option value="U">Sunday</option></select></label>
+          <label class="field">Course color<input id="courseColor" type="color" value="#ff6b55" /></label>
+          <label class="field">Starts<input id="courseStart" type="time" value="09:15" required /></label>
+          <label class="field">Ends<input id="courseEnd" type="time" value="10:45" required /></label>
+          <label class="field">Professor<input id="courseProfessor" placeholder="Professor name" /></label>
+          <label class="field">Room<input id="courseRoom" placeholder="Room or Online" /></label>
+        </div>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-dialog>Cancel</button><button id="courseSubmit" value="default" class="button primary">Add course</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="optionsDialog" class="modal compact" closedby="any" aria-labelledby="optionsDialogTitle">
+      <form method="dialog">
+        <div class="modal-head"><div><p class="eyebrow">Calendar</p><h2 id="optionsDialogTitle">View options</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close view options">×</button></div>
+        <div class="option-list">
+          <label class="switch wide"><input id="saturdayToggle" type="checkbox" checked /><span></span>Show Saturday</label>
+          <label class="switch wide"><input id="optionsSundayToggle" type="checkbox" /><span></span>Show Sunday</label>
+          <label class="switch wide"><input id="timeFormatToggle" type="checkbox" /><span></span>Use 24-hour time</label>
+          <label class="switch wide"><input id="compactToggle" type="checkbox" /><span></span>Compact course cards</label>
+        </div>
+        <div class="modal-actions"><button value="default" class="button primary">Done</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="saveDialog" class="modal compact" closedby="any" aria-labelledby="saveDialogTitle">
+      <form id="saveForm" method="dialog">
+        <div class="modal-head"><div><p class="eyebrow">Local archive</p><h2 id="saveDialogTitle">Save this week</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close save dialog">×</button></div>
+        <label class="field">Schedule name<input id="saveName" required maxlength="48" autocomplete="off" /></label>
+        <p class="muted">Stored only on this device. You can export a JSON backup from Library.</p>
+        <div class="modal-actions"><button type="button" class="button ghost" data-close-dialog>Cancel</button><button value="default" class="button primary">Save locally</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="hubDialog" class="modal" closedby="any" aria-labelledby="hubDialogTitle">
+      <form method="dialog">
+        <div class="modal-head"><div><p class="eyebrow">Private connection</p><h2 id="hubDialogTitle">Archer's Hub catalog</h2></div><button type="button" class="icon-button" data-close-dialog aria-label="Close Archer's Hub catalog">×</button></div>
+        <div id="hubSignedOut" class="hub-state">
+          <p class="muted">Sign in to Archer's Hub in this browser, then return here. Timoraft reads catalog data locally and does not send it elsewhere.</p>
+          <div class="button-row"><button id="openHubLogin" type="button" class="button ghost">Open Archer's Hub</button><button id="retryHub" type="button" class="button primary">I'm signed in</button></div>
+        </div>
+        <div id="hubExpired" class="hub-state session-expired" hidden role="alert">
+          <span class="session-expired-icon" aria-hidden="true">!</span>
+          <div><strong>Your Hub connection ended</strong><p>Open Archer's Hub again, sign in, then refresh the catalog here.</p></div>
+          <div class="button-row"><button id="openHubRelogin" type="button" class="button ghost">Open sign-in</button><button id="retryExpiredHub" type="button" class="button primary">Refresh connection</button></div>
+        </div>
+        <div id="hubSignedIn" class="hub-state" hidden>
+          <div class="two-fields">
+            <label class="field">Campus<select id="hubCampus"></select></label>
+            <label class="field">Term<select id="hubSession"></select></label>
+          </div>
+          <label class="search hub-search"><span>⌕</span><input id="hubCourseSearch" type="search" placeholder="Search Hub catalog" /></label>
+          <div id="hubCourseList" class="hub-course-list"></div>
+        </div>
+        <p id="hubStatus" class="hub-status" role="status" aria-live="polite"></p>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>
