@@ -79,6 +79,7 @@ const defaults = () => {
     options: { showSaturday: true, showSunday: false, use24Hour: false, compact: false, theme: "light", railCollapsed: false },
     merge: { a: "", b: "", colorA: "#ff6b55", colorB: "#6ee7c2", showSunday: false },
     wallpaper: defaultWallpaper(),
+    wallpaperDesigns: [], activeWallpaperDesignId: "", wallpaperDesignDirty: false,
     hub: { campusId: "", sessionId: "", lastSyncedAt: 0 },
   };
 };
@@ -538,6 +539,20 @@ function migrateWallpaperOptions(input = {}) {
   return options;
 }
 
+function cloneWallpaperOptions(options = state.wallpaper) {
+  return migrateWallpaperOptions(structuredClone(options));
+}
+
+function migrateWallpaperDesigns(input) {
+  if (!Array.isArray(input)) return [];
+  return input.map((design) => ({
+    id: typeof design?.id === "string" && design.id ? design.id : crypto.randomUUID(),
+    name: String(design?.name || "Wallpaper design").trim().slice(0, 48) || "Wallpaper design",
+    updatedAt: Number(design?.updatedAt) || Date.now(),
+    options: migrateWallpaperOptions(design?.options),
+  }));
+}
+
 function wallpaperColumnCount(options, dayCount) {
   if (options.layout === "agenda") return 1;
   if (options.layout === "split") return Math.min(2, dayCount);
@@ -844,6 +859,89 @@ function renderWallpaper() {
   renderImagePalette();
   renderWallpaperTextEditor();
   renderWallpaperPreview();
+  renderWallpaperDesignControls();
+}
+
+function getActiveWallpaperDesign() {
+  return state.wallpaperDesigns.find((design) => design.id === state.activeWallpaperDesignId);
+}
+
+function renderWallpaperDesignControls(syncName = false) {
+  const select = $("#wallpaperDesignSelect");
+  const nameInput = $("#wallpaperDesignName");
+  const active = getActiveWallpaperDesign();
+  const optionsMarkup = [`<option value="">Current draft / new design</option>`, ...state.wallpaperDesigns
+    .slice()
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map((design) => `<option value="${escapeHtml(design.id)}">${escapeHtml(design.name)}</option>`)].join("");
+  if (select.innerHTML !== optionsMarkup) select.innerHTML = optionsMarkup;
+  select.value = active?.id || "";
+  if (syncName || (active && document.activeElement !== nameInput && !nameInput.value)) nameInput.value = active?.name || "";
+  $("#deleteWallpaperEdits").disabled = !active;
+  $("#saveWallpaperEdits").textContent = active ? "Update saved edits" : "Save edits";
+  const status = $("#wallpaperDesignStatus");
+  status.classList.toggle("is-dirty", state.wallpaperDesignDirty);
+  if (active && state.wallpaperDesignDirty) status.textContent = `Draft changes are autosaved. Save edits to update “${active.name}”.`;
+  else if (active) status.textContent = `“${active.name}” is saved locally and ready to reuse.`;
+  else status.textContent = "Your current draft is autosaved locally. Add a name to keep a reusable copy.";
+}
+
+function markWallpaperDesignDirty() {
+  state.wallpaperDesignDirty = true;
+  renderWallpaperDesignControls();
+}
+
+function saveWallpaperEdits() {
+  const nameInput = $("#wallpaperDesignName");
+  const active = getActiveWallpaperDesign();
+  const fallbackName = String(state.wallpaper.title || "Wallpaper design").trim();
+  const name = String(nameInput.value || fallbackName || "Wallpaper design").trim().slice(0, 48);
+  if (!name) { nameInput.focus(); toast("Add a name for this wallpaper design"); return; }
+  const saved = {
+    id: active?.id || crypto.randomUUID(),
+    name,
+    updatedAt: Date.now(),
+    options: cloneWallpaperOptions(),
+  };
+  if (active) state.wallpaperDesigns = state.wallpaperDesigns.map((design) => design.id === active.id ? saved : design);
+  else state.wallpaperDesigns.push(saved);
+  state.activeWallpaperDesignId = saved.id;
+  state.wallpaperDesignDirty = false;
+  renderWallpaperDesignControls(true);
+  queueSave();
+  toast(active ? "Saved wallpaper edits updated" : "Wallpaper edits saved locally");
+}
+
+function loadWallpaperEdits(id) {
+  if (!id) {
+    state.activeWallpaperDesignId = "";
+    state.wallpaperDesignDirty = false;
+    $("#wallpaperDesignName").value = "";
+    renderWallpaperDesignControls(true);
+    queueSave();
+    return;
+  }
+  const design = state.wallpaperDesigns.find((item) => item.id === id);
+  if (!design) return;
+  state.wallpaper = cloneWallpaperOptions(design.options);
+  state.activeWallpaperDesignId = design.id;
+  state.wallpaperDesignDirty = false;
+  renderWallpaper();
+  renderWallpaperDesignControls(true);
+  queueSave();
+  toast(`Loaded “${design.name}”`);
+}
+
+function deleteWallpaperEdits() {
+  const active = getActiveWallpaperDesign();
+  if (!active) return;
+  state.wallpaperDesigns = state.wallpaperDesigns.filter((design) => design.id !== active.id);
+  state.activeWallpaperDesignId = "";
+  state.wallpaperDesignDirty = false;
+  $("#wallpaperDesignName").value = "";
+  renderWallpaperDesignControls(true);
+  queueSave();
+  toast(`Deleted saved design “${active.name}”`);
 }
 
 function hexToRgba(hex, alpha) {
@@ -1315,18 +1413,18 @@ function bind() {
   for (const [id, key] of Object.entries(wallpaperBindings)) $( `#${id}` ).addEventListener("input", (event) => {
     state.wallpaper[key] = event.target.type === "checkbox" ? event.target.checked : event.target.type === "range" ? Number(event.target.value) : event.target.value;
     if (key === "layout" && state.wallpaper.layout === "neon-grid" && (!state.wallpaper.title || state.wallpaper.title === "MY WEEK")) state.wallpaper.title = "WEEKLY SCHEDULE";
-    renderWallpaper(); queueSave();
+    markWallpaperDesignDirty(); renderWallpaper(); queueSave();
   });
   $("#wallpaperPalette").addEventListener("change", (event) => {
     const palette = WALLPAPER_PALETTES[event.target.value];
     state.wallpaper.palette = event.target.value;
     if (palette) Object.assign(state.wallpaper, palette);
-    renderWallpaper(); queueSave();
+    markWallpaperDesignDirty(); renderWallpaper(); queueSave();
   });
   [["wallpaperBgA", "bgA"], ["wallpaperBgB", "bgB"], ["wallpaperTextColor", "textColor"]].forEach(([id, key]) => {
     $( `#${id}` ).addEventListener("input", (event) => {
       state.wallpaper[key] = safeHex(event.target.value, state.wallpaper[key]);
-      state.wallpaper.palette = "custom"; renderWallpaper(); queueSave();
+      state.wallpaper.palette = "custom"; markWallpaperDesignDirty(); renderWallpaper(); queueSave();
     });
   });
   [["wallpaperBgACode", "bgA"], ["wallpaperBgBCode", "bgB"], ["wallpaperTextColorCode", "textColor"]].forEach(([id, key]) => {
@@ -1334,7 +1432,7 @@ function bind() {
       const color = safeHex(event.target.value, "");
       event.target.toggleAttribute("aria-invalid", !color);
       if (!color) return;
-      state.wallpaper[key] = color; state.wallpaper.palette = "custom"; renderWallpaper(); queueSave();
+      state.wallpaper[key] = color; state.wallpaper.palette = "custom"; markWallpaperDesignDirty(); renderWallpaper(); queueSave();
     });
   });
   $("#wallpaperImage").addEventListener("change", async (event) => {
@@ -1344,7 +1442,7 @@ function bind() {
     reader.onload = async () => {
       state.wallpaper.image = safeImageData(reader.result);
       state.wallpaper.imagePalette = await extractImagePalette(state.wallpaper.image);
-      renderWallpaper(); queueSave(); toast("Background and colors added");
+      markWallpaperDesignDirty(); renderWallpaper(); queueSave(); toast("Background and colors added");
     };
     reader.readAsDataURL(file);
   });
@@ -1352,11 +1450,11 @@ function bind() {
     const swatch = event.target.closest("[data-palette-color]"); if (!swatch) return;
     const target = $("input[name='paletteTarget']:checked")?.value || "bgA";
     state.wallpaper[target] = safeHex(swatch.dataset.paletteColor, state.wallpaper[target]);
-    state.wallpaper.palette = "custom"; renderWallpaper(); queueSave(); toast(`Applied to background ${target === "bgA" ? "one" : "two"}`);
+    state.wallpaper.palette = "custom"; markWallpaperDesignDirty(); renderWallpaper(); queueSave(); toast(`Applied to background ${target === "bgA" ? "one" : "two"}`);
   });
   $("#removeWallpaperImage").addEventListener("click", () => {
     state.wallpaper.image = ""; state.wallpaper.imagePalette = []; $("#wallpaperImage").value = "";
-    renderWallpaper(); queueSave(); toast("Background image removed");
+    markWallpaperDesignDirty(); renderWallpaper(); queueSave(); toast("Background image removed");
   });
   $("#wallpaperTextEditor").addEventListener("input", (event) => {
     const field = event.target.closest("[data-text-field]");
@@ -1374,19 +1472,26 @@ function bind() {
     } else {
       state.wallpaper.textOverrides[key] = { ...current, [field.dataset.textField]: field.value };
     }
-    renderWallpaperPreview(); queueSave();
+    markWallpaperDesignDirty(); renderWallpaperPreview(); queueSave();
   });
   $("#resetWallpaperText").addEventListener("click", () => {
-    state.wallpaper.textOverrides = {}; renderWallpaper(); queueSave(); toast("Wallpaper text restored");
+    state.wallpaper.textOverrides = {}; markWallpaperDesignDirty(); renderWallpaper(); queueSave(); toast("Wallpaper text restored");
   });
-  $("#resetWallpaper").addEventListener("click", () => { state.wallpaper = defaultWallpaper(); renderWallpaper(); queueSave(); });
+  $("#wallpaperDesignSelect").addEventListener("change", (event) => loadWallpaperEdits(event.target.value));
+  $("#wallpaperDesignName").addEventListener("input", () => { if (getActiveWallpaperDesign()) markWallpaperDesignDirty(); });
+  $("#saveWallpaperEdits").addEventListener("click", saveWallpaperEdits);
+  $("#deleteWallpaperEdits").addEventListener("click", deleteWallpaperEdits);
+  $("#resetWallpaper").addEventListener("click", () => {
+    state.wallpaper = defaultWallpaper(); state.activeWallpaperDesignId = ""; state.wallpaperDesignDirty = false;
+    $("#wallpaperDesignName").value = ""; renderWallpaper(); queueSave();
+  });
   $("#downloadWallpaper").addEventListener("click", downloadWallpaper);
 
   $("#libraryGrid").addEventListener("click", (event) => {
     const card = event.target.closest("[data-saved-id]"); if (!card) return;
     const item = getSaved(card.dataset.savedId); if (!item) return;
     if (event.target.closest(".load-saved")) loadSaved(item);
-    if (event.target.closest(".wallpaper-saved")) { state.wallpaper.scheduleId = item.id; setView("wallpaper"); renderWallpaper(); queueSave(); }
+    if (event.target.closest(".wallpaper-saved")) { state.wallpaper.scheduleId = item.id; markWallpaperDesignDirty(); setView("wallpaper"); renderWallpaper(); queueSave(); }
     if (event.target.closest(".delete-saved")) { state.saved = state.saved.filter((entry) => entry.id !== item.id); renderAll(); queueSave(); toast("Saved schedule deleted"); }
   });
   $("#exportJson").addEventListener("click", exportBackup);
@@ -1410,8 +1515,15 @@ function migrateState(input = {}) {
     options: { ...base.options, ...(input.options || {}) },
     merge: { ...base.merge, ...(input.merge || {}) },
     wallpaper: migrateWallpaperOptions(input.wallpaper),
+    wallpaperDesigns: migrateWallpaperDesigns(input.wallpaperDesigns),
+    activeWallpaperDesignId: typeof input.activeWallpaperDesignId === "string" ? input.activeWallpaperDesignId : "",
+    wallpaperDesignDirty: Boolean(input.wallpaperDesignDirty),
     hub: { ...base.hub, ...(input.hub || {}) },
   };
+  if (!next.wallpaperDesigns.some((design) => design.id === next.activeWallpaperDesignId)) {
+    next.activeWallpaperDesignId = "";
+    next.wallpaperDesignDirty = false;
+  }
   const courseIds = new Set(next.courses.map((course) => course.id));
   next.collapsedCourses = next.collapsedCourses.filter((id) => courseIds.has(id));
   for (const course of next.courses) {

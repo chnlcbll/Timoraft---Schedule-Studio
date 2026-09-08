@@ -106,6 +106,19 @@
             <aside class="wallpaper-controls panel">
               <p class="eyebrow">Wallpaper</p><h2>Design your week</h2>
               <label class="field">Schedule<select id="wallpaperSchedule"></select></label>
+              <section class="wallpaper-saves" aria-labelledby="wallpaperSavesTitle">
+                <div class="wallpaper-saves-heading">
+                  <div><strong id="wallpaperSavesTitle">Saved wallpaper edits</strong><span>Keep complete designs you can return to later.</span></div>
+                  <span class="local-pill">On this device</span>
+                </div>
+                <label class="field">Saved design<select id="wallpaperDesignSelect"><option value="">Current draft / new design</option></select></label>
+                <label class="field">Design name<input id="wallpaperDesignName" maxlength="48" placeholder="My phone wallpaper" /></label>
+                <div class="wallpaper-save-actions">
+                  <button id="saveWallpaperEdits" type="button" class="button primary">Save edits</button>
+                  <button id="deleteWallpaperEdits" type="button" class="button ghost" disabled>Delete saved</button>
+                </div>
+                <p id="wallpaperDesignStatus" class="wallpaper-save-status" role="status" aria-live="polite">Your current draft is autosaved locally.</p>
+              </section>
               <label class="field">Title<input id="wallpaperTitle" value="MY WEEK" maxlength="36" /></label>
               <label class="field">Subtitle<input id="wallpaperSubtitle" value="Fall term" maxlength="52" /></label>
               <div class="two-fields">

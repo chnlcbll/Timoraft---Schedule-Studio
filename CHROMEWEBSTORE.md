@@ -18,6 +18,8 @@ Merge two saved schedules with a separate color for each person. Classes that ha
 
 Open Timoraft from its toolbar icon. Add classes manually or use the Archer's Hub search, generate combinations, then save the schedules you want to keep. The Merge Lab and Wallpaper Studio use those local saves.
 
+Wallpaper edits can also be saved as named local designs. Each saved design preserves its selected schedule, layout, export ratio, colors, uploaded image, sizing, visibility options, and corrected meeting text so it can be loaded, updated, or deleted later.
+
 Schedule data, preferences, and uploaded wallpaper backgrounds stay in the browser's local extension storage. Timoraft contacts only Archer's Hub when the user chooses to search its catalog and uses the user's existing signed-in session for that request. It has no analytics, ads, or developer-operated server.
 
 **Category:** Productivity
@@ -112,6 +114,7 @@ The public-ready policy is available at `PRIVACY.md`. After publishing this repo
 
 | Version | Date | Changes | Status |
 |---|---|---|---|
+| 1.7.0 | 2026-09-08 | Added named, reusable wallpaper-edit saves that preserve complete designs—including layout, ratio, colors, uploaded image, display settings, and edited meeting text—with load, update, and delete controls. | Draft |
 | 1.6.1 | 2026-09-08 | Made course codes protected, high-contrast labels in both dark-grid layouts, with card-level responsive sizing that preserves the full code before shortening titles or other secondary text. | Draft |
 | 1.6.0 | 2026-09-08 | Added per-meeting wallpaper editing for day, time, room or online mode, and professor; kept time and room visible on every card; and fixed short BIOLRES-style Sunday cards across all layouts and device sizes. | Draft |
 | 1.5.1 | 2026-09-08 | Expanded short-class cards in both dark time-grid layouts, condensed their detail hierarchy, and added collision-safe responsive sizing so section, time, room, and professor remain visible across every export ratio. | Draft |

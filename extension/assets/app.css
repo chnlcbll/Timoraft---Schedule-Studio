@@ -253,6 +253,18 @@ html[data-theme="dark"] .stat-pill.warning { color: #efbd68; background: #392c18
 
 .wallpaper-layout { display: grid; height: 100%; grid-template-columns: 350px minmax(600px, 1fr); gap: 16px; }
 .wallpaper-controls { box-shadow: var(--shadow); scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.wallpaper-saves { margin: 15px 0 18px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.wallpaper-saves-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.wallpaper-saves-heading > div { min-width: 0; display: grid; gap: 3px; }
+.wallpaper-saves-heading strong { color: var(--text); font-size: 10px; font-weight: 720; }
+.wallpaper-saves-heading span { color: var(--muted); font-size: 8px; line-height: 1.4; }
+.wallpaper-saves-heading .local-pill { flex: none; padding: 4px 6px; border-radius: 999px; color: var(--accent); background: color-mix(in srgb, var(--accent), transparent 90%); font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.wallpaper-saves .field { margin-block: 10px; }
+.wallpaper-save-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.wallpaper-save-actions .button { min-width: 0; }
+.wallpaper-save-status { min-height: 2.8em; margin: 9px 1px 0; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.wallpaper-save-status.is-dirty { color: #9a6619; }
+html[data-theme="dark"] .wallpaper-save-status.is-dirty { color: #e6b75f; }
 .two-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 15px 0; }
 .checks label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 600; }

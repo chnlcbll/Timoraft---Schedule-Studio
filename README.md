@@ -61,6 +61,9 @@ Slottle.
 - Course codes are rendered as protected, high-contrast labels separate from
   optional titles. Narrow merged lanes shorten secondary text first and keep
   the full code visible in both the preview and exported PNG.
+- Wallpaper edits can be saved as named local designs, reloaded, updated, and
+  deleted. Each saved design keeps its schedule choice, layout, device ratio,
+  colors, image, sizing, visibility settings, and per-meeting text corrections.
 - Wallpaper cards use a consistent detail hierarchy for course code, section,
   time, room, professor, and course title. Dense and merged schedules scale down
   automatically and are clipped safely inside each day instead of overflowing.
