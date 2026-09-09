@@ -5,6 +5,18 @@ class combinations, layering two saved schedules, and creating custom schedule
 wallpapers. Its visual identity and interface are intentionally distinct from
 Slottle.
 
+## Screenshots
+
+| Build your schedule | Merge two schedules |
+|:---:|:---:|
+| ![Timoraft schedule builder with course selection and weekly calendar](store-assets/screenshots/01-build-your-schedule.png) | ![Timoraft Merge Lab comparing two saved schedules](store-assets/screenshots/02-merge-two-schedules.png) |
+
+| Customize wallpapers | Time grid and break labels |
+|:---:|:---:|
+| ![Timoraft Wallpaper Studio with design controls and live preview](store-assets/screenshots/03-customize-wallpapers.png) | ![Timoraft weekly time-grid wallpaper with course cards and break labels](store-assets/screenshots/04-time-grid-and-breaks.png) |
+
+![Timoraft responsive wallpaper layouts with readable schedule cards](store-assets/screenshots/05-responsive-readable-layouts.png)
+
 ## Features
 
 - Generates up to 250 conflict-free combinations in a cancellable background
