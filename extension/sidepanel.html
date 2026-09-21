@@ -6,6 +6,7 @@
     <meta name="color-scheme" content="dark light" />
     <title>Timoraft</title>
     <link rel="stylesheet" href="assets/app.css" />
+    <link rel="stylesheet" href="assets/reference-wallpaper.css" />
   </head>
   <body>
     <div id="app" class="app-shell">
@@ -123,7 +124,7 @@
               <label class="field">Subtitle<input id="wallpaperSubtitle" value="Fall term" maxlength="52" /></label>
               <div class="two-fields">
                 <label class="field">Ratio<select id="wallpaperRatio"><option value="16:9">Desktop 16:9</option><option value="9:16">Phone 9:16</option><option value="9:19.5">Tall phone 9:19.5</option><option value="9:21">Extra-tall phone 9:21</option><option value="4:3">Tablet 4:3</option><option value="1:1">Square</option></select></label>
-                <label class="field">Layout<select id="wallpaperLayout"><option value="board">Week board</option><option value="split">Split week</option><option value="agenda">Daily agenda</option><option value="timeline">Time grid</option><option value="compact-grid">Compact timetable</option><option value="neon-grid">Neon weekly grid</option><option value="pastel-grid">Pastel dark grid</option></select></label>
+                <label class="field">Layout<select id="wallpaperLayout"><option value="board">Week board</option><option value="split">Split week</option><option value="agenda">Daily agenda</option><option value="timeline">Time grid</option><option value="compact-grid">Compact timetable</option><option value="neon-grid">Neon weekly grid</option><option value="pastel-grid">Pastel dark grid</option><option value="reference-dark">Reference dark · lock screen / time grid</option></select></label>
               </div>
               <div class="two-fields">
                 <label class="field">Typeface<select id="wallpaperFont"><option value="neo">Clean sans</option><option value="aptos">Aptos display</option><option value="geometric">Geometric sans</option><option value="condensed">Condensed display</option><option value="humanist">Humanist sans</option><option value="editorial">Editorial serif</option><option value="classic">Classic serif</option><option value="literary">Garamond</option><option value="rounded">Soft rounded</option><option value="mono">Technical mono</option></select></label>
@@ -140,6 +141,8 @@
                 <p>Keep the top clear for the phone clock and notifications. Set to 0% for a regular wallpaper.</p>
               </div>
               <label class="field">Content scale <output id="contentScaleOutput">100%</output><input id="wallpaperContentScale" type="range" min="70" max="115" value="100" /></label>
+              <label class="field" for="wallpaperTextScale">Card text size <output id="textScaleOutput" for="wallpaperTextScale">100%</output><input id="wallpaperTextScale" type="range" min="80" max="160" step="5" value="100" aria-describedby="wallpaperTextScaleHint" /></label>
+              <p id="wallpaperTextScaleHint" class="wallpaper-control-hint">Changes only text inside course cards. The time grid flexes to give larger cards more room.</p>
               <label class="field">Gradient angle <output id="angleOutput">135°</output><input id="wallpaperAngle" type="range" min="0" max="360" value="135" /></label>
               <label class="field">Card opacity <output id="opacityOutput">92%</output><input id="wallpaperOpacity" type="range" min="35" max="100" value="92" /></label>
               <label class="field">Corner radius <output id="radiusOutput">12px</output><input id="wallpaperRadius" type="range" min="0" max="28" value="12" /></label>

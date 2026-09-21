@@ -1,6 +1,6 @@
 # Chrome Web Store Listing — Timoraft — Schedule Studio
 
-> Last updated: 2026-09-08
+> Last updated: 2026-09-21
 
 ## Store listing
 
@@ -14,11 +14,15 @@ Timoraft is a local-first schedule studio for assembling class schedules and kee
 
 Build conflict-free combinations from courses and sections, select or deselect sections in bulk, optionally include Sundays, import available classes from Archer's Hub while signed in, and save schedules on your device. Enrollment meters show how many students are in each imported section, full sections stay selectable, and unlimited pins keep preferred choices first. Large catalogs remain responsive and course cards can be minimized.
 
-Merge two saved schedules with a separate color for each person. Classes that happen at the same time are placed side by side instead of covering one another, and only clashes within the same saved schedule are flagged. Turn any schedule or current merged view into a customized desktop, standard phone, tall phone, extra-tall phone, tablet, or square wallpaper using seven layouts, ten typeface choices, palette presets, image-derived colors, labeled breaks, and an optional brand mark. Phone exports include adjustable clear space for the lock-screen clock and notifications. Wallpaper cards automatically adapt to schedule density and keep course, section, time, room, professor, and title details organized inside the design. Repeated sections can be edited meeting by meeting, allowing separate days to use different times, rooms or online modes, and professors. Short Sunday classes remain readable across every wallpaper style. Choose a neon weekly grid or a charcoal pastel grid with a shared time rail, fixed-position course cards, highlighted breaks, a units footer, and legible grouped day grids on smaller exports. The icon-based navigation can also collapse to leave more room for the active workspace. Correct imported schedule text before export without changing the saved schedule.
+Merge two saved schedules with a separate color for each person. Classes that happen at the same time are placed side by side instead of covering one another, and only clashes within the same saved schedule are flagged. Turn any schedule or current merged view into a customized desktop, standard phone, tall phone, extra-tall phone, tablet, or square wallpaper using eight layouts, ten typeface choices, palette presets, image-derived colors, labeled breaks, and an optional brand mark. Phone exports include adjustable clear space for the lock-screen clock and notifications. Wallpaper cards automatically adapt to schedule density and keep course code, section, time, room, and professor details organized inside the design without long subject names. Repeated sections can be edited meeting by meeting, allowing separate days to use different times, rooms or online modes, and professors. Short Sunday classes remain readable across every wallpaper style. Choose a neon weekly grid or a charcoal pastel grid with an adjustable time rail, highlighted breaks, a units footer, and legible grouped day grids on smaller exports. The icon-based navigation can also collapse to leave more room for the active workspace. Correct imported schedule text before export without changing the saved schedule.
 
 Open Timoraft from its toolbar icon. Add classes manually or use the Archer's Hub search, generate combinations, then save the schedules you want to keep. The Merge Lab and Wallpaper Studio use those local saves.
 
 Wallpaper edits can also be saved as named local designs. Each saved design preserves its selected schedule, layout, export ratio, colors, uploaded image, sizing, visibility options, and corrected meeting text so it can be loaded, updated, or deleted later.
+
+A card-text-size control adjusts course codes and meeting details in both the live wallpaper preview and exported PNG without enlarging titles, day headings, or time labels. Time-grid layouts make more room around classes as text grows, and wallpaper cards show course codes instead of full subject names. The setting stays with each saved design.
+
+The Reference dark layout pairs a clock-safe two-column phone wallpaper with a dark timetable on wider exports. It includes section, time, room, and professor details; merged schedules use their separate chosen colors.
 
 Schedule data, preferences, and uploaded wallpaper backgrounds stay in the browser's local extension storage. Timoraft contacts only Archer's Hub when the user chooses to search its catalog and uses the user's existing signed-in session for that request. It has no analytics, ads, or developer-operated server.
 
@@ -40,7 +44,7 @@ Schedule data, preferences, and uploaded wallpaper backgrounds stay in the brows
 | Screenshot 5 — Responsive cards | 1280×800 PNG | Ready | `store-assets/screenshots/05-responsive-readable-layouts.png` |
 | Small promo tile | 440×280 | Optional / not created | |
 
-The five screenshots use current Timoraft interface captures with consistent store-safe framing and feature-specific captions. Regenerate them with `store-assets/create-screenshots.ps1` if the interface changes.
+The five screenshots use Timoraft interface captures with consistent store-safe framing and feature-specific captions. Screenshots 3 and 4 should be refreshed to show the card-text-size control, adaptive time grid, and Reference dark layout before store submission; regenerate them with `store-assets/create-screenshots.ps1`.
 
 ## Permissions justification
 
@@ -114,6 +118,8 @@ The public-ready policy is available at `PRIVACY.md`. After publishing this repo
 
 | Version | Date | Changes | Status |
 |---|---|---|---|
+| 1.8.1 | 2026-09-21 | Scoped text sizing to wallpaper cards, adjusted grid spacing and card heights, wrapped meeting details, and removed full subject names from wallpaper cards. | Draft |
+| 1.8.0 | 2026-09-18 | Added wallpaper text sizing and a Reference dark layout with a clock-safe phone board, a dark desktop timetable, and schedule-aware merge colors. | Draft |
 | 1.7.0 | 2026-09-08 | Added named, reusable wallpaper-edit saves that preserve complete designs—including layout, ratio, colors, uploaded image, display settings, and edited meeting text—with load, update, and delete controls. | Draft |
 | 1.6.1 | 2026-09-08 | Made course codes protected, high-contrast labels in both dark-grid layouts, with card-level responsive sizing that preserves the full code before shortening titles or other secondary text. | Draft |
 | 1.6.0 | 2026-09-08 | Added per-meeting wallpaper editing for day, time, room or online mode, and professor; kept time and room visible on every card; and fixed short BIOLRES-style Sunday cards across all layouts and device sizes. | Draft |

@@ -70,14 +70,21 @@ Slottle.
   height, preserve every course's true start and end time in the text, and use
   extra lanes when needed so section, time, room, and professor details remain
   visible without cards covering each other.
-- Course codes are rendered as protected, high-contrast labels separate from
-  optional titles. Narrow merged lanes shorten secondary text first and keep
-  the full code visible in both the preview and exported PNG.
+- Course codes are rendered as protected, high-contrast labels without long
+  subject names. Narrow merged lanes prioritize the code in both the preview
+  and exported PNG.
 - Wallpaper edits can be saved as named local designs, reloaded, updated, and
   deleted. Each saved design keeps its schedule choice, layout, device ratio,
   colors, image, sizing, visibility settings, and per-meeting text corrections.
+- A card-text-size control adjusts only course codes and meeting details,
+  not wallpaper titles or time labels. The time grid gives occupied periods
+  and larger cards more room, and wallpaper cards omit full subject names.
+  The choice is saved with each wallpaper design.
+- Reference dark adds a lock-screen-friendly two-column card board on phone
+  exports and a black time-grid on wider exports. It includes code, section,
+  time, room, and professor, and uses each person's color in merged schedules.
 - Wallpaper cards use a consistent detail hierarchy for course code, section,
-  time, room, professor, and course title. Dense and merged schedules scale down
+  time, room, and professor. Dense and merged schedules scale down
   automatically and are clipped safely inside each day instead of overflowing.
 - Local schedule library with load, delete, wallpaper, JSON backup, and JSON
   restore actions.
