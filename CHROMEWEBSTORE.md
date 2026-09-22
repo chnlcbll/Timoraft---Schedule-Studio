@@ -1,6 +1,6 @@
 # Chrome Web Store Listing — Timoraft — Schedule Studio
 
-> Last updated: 2026-09-21
+> Last updated: 2026-09-22
 
 ## Store listing
 
@@ -118,6 +118,7 @@ The public-ready policy is available at `PRIVACY.md`. After publishing this repo
 
 | Version | Date | Changes | Status |
 |---|---|---|---|
+| 1.8.2 | 2026-09-22 | Made Reference dark phone cards grow with the card-text setting, with matching preview/export geometry and an adaptive panel that uses available vertical space. | Draft |
 | 1.8.1 | 2026-09-21 | Scoped text sizing to wallpaper cards, adjusted grid spacing and card heights, wrapped meeting details, and removed full subject names from wallpaper cards. | Draft |
 | 1.8.0 | 2026-09-18 | Added wallpaper text sizing and a Reference dark layout with a clock-safe phone board, a dark desktop timetable, and schedule-aware merge colors. | Draft |
 | 1.7.0 | 2026-09-08 | Added named, reusable wallpaper-edit saves that preserve complete designs—including layout, ratio, colors, uploaded image, display settings, and edited meeting text—with load, update, and delete controls. | Draft |

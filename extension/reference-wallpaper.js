@@ -29,21 +29,33 @@ function phoneModel(entries, days, width, height, options) {
   const slots = groups.reduce((sum, group) => sum + group.slots, 0);
   const safeTop = Math.max(.30, Math.min(.48, (Number(options.clockSpace) || 30) / 100 + .015));
   const typeScale = Math.max(.8, Math.min(1.6, (Number(options.textScale) || 100) / 100));
-  const panelTop = height * Math.max(safeTop, Math.min(.39, .53 - slots * .018) - Math.max(0, typeScale - 1) * .06);
+  const growth = Math.max(0, (typeScale - 1) / .6);
   const outer = width * .031;
   const inset = width * .039;
   const panelBottom = height - height * .041;
-  const headingTop = panelTop + height * .022;
   const titleSize = width * .038;
   const subtitleSize = width * .014;
-  const groupsTop = headingTop + titleSize * 1.65 + subtitleSize * 2.25;
   const footerHeight = Math.max(20, width * .026);
-  const groupGap = Math.max(6, width * (.021 - Math.max(0, typeScale - 1) * .009));
-  const dayHeadingHeight = Math.max(15, width * .026);
-  const cardGap = Math.max(3, width * (.008 - Math.max(0, typeScale - 1) * .003));
+  const groupGap = Math.max(5, width * (.021 - growth * .010));
+  const dayHeadingHeight = Math.max(15, width * .028);
+  const cardGap = Math.max(3, width * (.008 - growth * .0045));
+  const headerOffset = height * .022 + titleSize * 1.65 + subtitleSize * 2.25;
+  const desiredCardHeight = width * (.061 + growth * .022);
+  const fixedContentHeight = height * .022 + titleSize * 1.65 + subtitleSize * 2.25
+    + inset + footerHeight + groupGap * (groups.length - 1)
+    + groups.length * dayHeadingHeight + cardGap * (slots - groups.length);
+  const preferredTop = height * Math.max(safeTop, Math.min(.39, .53 - slots * .018));
+  // Preserve a substantial lock-screen clock area, but reclaim enough of the
+  // optional safe area for the cards when the user explicitly enlarges them.
+  const minimumTop = height * Math.max(.24, safeTop - growth * .075);
+  const requestedTop = panelBottom - fixedContentHeight - slots * desiredCardHeight;
+  const panelTop = Math.max(minimumTop, Math.min(preferredTop, requestedTop));
+  const headingTop = panelTop + height * .022;
+  const groupsTop = panelTop + headerOffset;
   const available = panelBottom - inset - footerHeight - groupsTop - groupGap * (groups.length - 1) - groups.length * dayHeadingHeight - cardGap * (slots - groups.length);
   const cardHeight = Math.max(12, available / Math.max(1, slots));
-  return { groups, slots, panelTop, panelBottom, outer, inset, headingTop, titleSize, subtitleSize, groupsTop, footerHeight, groupGap, dayHeadingHeight, cardGap, cardHeight };
+  const cardPadding = Math.max(.42, .75 - growth * .3);
+  return { groups, slots, panelTop, panelBottom, outer, inset, headingTop, titleSize, subtitleSize, groupsTop, footerHeight, groupGap, dayHeadingHeight, cardGap, cardHeight, desiredCardHeight, cardPadding };
 }
 
 export function referencePhonePreviewMarkup(entries, days, options) {
@@ -61,9 +73,10 @@ export function referencePhonePreviewMarkup(entries, days, options) {
   }).join("");
   const groups = model.groups.map(({ pair, slots }) => `<div class="reference-phone-row" style="--row-slots:${slots}">${pair.map((item) => `<section class="reference-phone-day"><h4>${DAY[item.day]}</h4><div class="reference-phone-events">${cards(item)}</div></section>`).join("")}</div>`).join("");
   const units = entries.reduce((sum, entry) => sum + (Number(entry.units) || 0), 0);
-  return `<div class="reference-phone-inner" style="--reference-panel-top:${model.panelTop / height * 100}%;--reference-card-scale:${Math.min(1, model.cardHeight / 80) * (options.textScale || 100) / 100}">
+  const rowTemplate = model.groups.map((group) => model.dayHeadingHeight + group.slots * model.cardHeight + (group.slots - 1) * model.cardGap).map((size) => `${size}fr`).join(" ");
+  return `<div class="reference-phone-inner" style="--reference-panel-top:${model.panelTop / height * 100}%;--reference-card-scale:${Math.min(1, model.cardHeight / 80) * (options.textScale || 100) / 100};--reference-card-min:${model.cardHeight / width * 100}cqi;--reference-card-gap:${model.cardGap / width * 100}cqi;--reference-group-gap:${model.groupGap / width * 100}cqi;--reference-card-pad:${model.cardPadding}cqi">
     <div class="reference-phone-panel"><header><h3>${escapeText(options.title || "WEEKLY SCHEDULE")}</h3>${options.subtitle ? `<p>${escapeText(options.subtitle)}</p>` : ""}</header>
-      <div class="reference-phone-rows" style="grid-template-rows:${model.groups.map((group) => `${group.slots}fr`).join(" ")}">${groups}</div>
+      <div class="reference-phone-rows" style="grid-template-rows:${rowTemplate}">${groups}</div>
       <footer><span>${units} UNITS</span>${merged ? `<span class="reference-phone-legend">${["A", "B"].map((source) => { const entry = entries.find((item) => item.source === source); return entry ? `<i style="--reference-accent:${colorFor(entry)}">${source}</i>` : ""; }).join("")}</span>` : ""}${options.showWatermark ? `<span>TIMORAFT</span>` : ""}</footer>
     </div>
   </div>`;

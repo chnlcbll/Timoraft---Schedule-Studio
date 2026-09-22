@@ -37,4 +37,21 @@ const overlapping = layoutWallpaperGridMeetings([
 ], "M", range, elasticGridAxis([...entries, { code: "CONFLICT", meetings: [{ day: "M", start: 480, end: 570 }] }], ["M", "T"], range, base), .1);
 assert.ok(overlapping.some((card) => card.laneCount === 2));
 
+const referenceSource = fs.readFileSync(path.join(__dirname, "..", "extension", "reference-wallpaper.js"), "utf8");
+const referenceEnd = referenceSource.indexOf("export function referencePhonePreviewMarkup");
+assert.ok(referenceEnd > 0, "reference phone sizing helpers are available");
+const referenceSandbox = { module: { exports: {} } };
+vm.runInNewContext(`${referenceSource.slice(0, referenceEnd)}\nmodule.exports = { phoneModel };`, referenceSandbox);
+const referenceEntries = [];
+for (const [day, count] of [["M", 6], ["T", 7], ["W", 2], ["H", 6], ["F", 6], ["S", 1], ["U", 1]]) {
+  for (let index = 0; index < count; index += 1) {
+    referenceEntries.push({ code: `${day}${index}`, meetings: [{ day, start: 450 + index * 75, end: 510 + index * 75 }] });
+  }
+}
+const referenceBase = referenceSandbox.module.exports.phoneModel(referenceEntries, ["M", "T", "W", "H", "F", "S", "U"], 1080, 2520, { clockSpace: 30, textScale: 100 });
+const referenceLarge = referenceSandbox.module.exports.phoneModel(referenceEntries, ["M", "T", "W", "H", "F", "S", "U"], 1080, 2520, { clockSpace: 30, textScale: 160 });
+assert.ok(referenceLarge.cardHeight > referenceBase.cardHeight, "larger reference card text increases card height");
+assert.ok(referenceLarge.panelTop < referenceBase.panelTop, "the reference panel expands upward to make room for larger cards");
+assert.ok(referenceLarge.cardHeight >= referenceLarge.desiredCardHeight * .75, "dense phone layouts retain most of the requested card growth");
+
 console.log("Wallpaper layout regression checks passed.");

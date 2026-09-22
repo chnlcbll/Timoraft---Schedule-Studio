@@ -83,6 +83,9 @@ Slottle.
 - Reference dark adds a lock-screen-friendly two-column card board on phone
   exports and a black time-grid on wider exports. It includes code, section,
   time, room, and professor, and uses each person's color in merged schedules.
+  Increasing its card-text size also grows its class cards and expands the
+  phone panel while retaining lock-screen space, keeping details inside their
+  cards in both the live preview and exported PNG.
 - Wallpaper cards use a consistent detail hierarchy for course code, section,
   time, room, and professor. Dense and merged schedules scale down
   automatically and are clipped safely inside each day instead of overflowing.
