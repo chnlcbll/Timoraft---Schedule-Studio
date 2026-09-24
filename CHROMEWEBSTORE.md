@@ -1,6 +1,6 @@
 # Chrome Web Store Listing — Timoraft — Schedule Studio
 
-> Last updated: 2026-09-22
+> Last updated: 2026-09-24
 
 ## Store listing
 
@@ -22,7 +22,7 @@ Wallpaper edits can also be saved as named local designs. Each saved design pres
 
 A card-text-size control adjusts course codes and meeting details in both the live wallpaper preview and exported PNG without enlarging titles, day headings, or time labels. Time-grid layouts make more room around classes as text grows, and wallpaper cards show course codes instead of full subject names. The setting stays with each saved design.
 
-The Reference dark layout pairs a clock-safe two-column phone wallpaper with a dark timetable on wider exports. It includes section, time, room, and professor details; merged schedules use their separate chosen colors.
+The Reference dark layout pairs a clock-safe two-column phone wallpaper with a dark timetable on wider exports. Phone cards grow to contain measured text, with labeled room and professor lines and wrapping for long details. Days stack independently to make more room in dense merged schedules. The preview matches the PNG, and a fit notice explains when a taller phone or less clock space is needed for larger text. Merged schedules use their separate chosen colors.
 
 Schedule data, preferences, and uploaded wallpaper backgrounds stay in the browser's local extension storage. Timoraft contacts only Archer's Hub when the user chooses to search its catalog and uses the user's existing signed-in session for that request. It has no analytics, ads, or developer-operated server.
 
@@ -118,6 +118,7 @@ The public-ready policy is available at `PRIVACY.md`. After publishing this repo
 
 | Version | Date | Changes | Status |
 |---|---|---|---|
+| 1.8.3 | 2026-09-24 | Measured card text across wallpaper layouts; kept complete room, time, section, professor, and course-code details; unified preview/export rendering; made grid spacing adapt to wrapped text; added independent Reference phone day stacks and fit-limit notices. | Draft |
 | 1.8.2 | 2026-09-22 | Made Reference dark phone cards grow with the card-text setting, with matching preview/export geometry and an adaptive panel that uses available vertical space. | Draft |
 | 1.8.1 | 2026-09-21 | Scoped text sizing to wallpaper cards, adjusted grid spacing and card heights, wrapped meeting details, and removed full subject names from wallpaper cards. | Draft |
 | 1.8.0 | 2026-09-18 | Added wallpaper text sizing and a Reference dark layout with a clock-safe phone board, a dark desktop timetable, and schedule-aware merge colors. | Draft |

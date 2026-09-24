@@ -1,4 +1,5 @@
 import { referencePhonePreviewMarkup, drawReferencePhoneCanvas } from "./reference-wallpaper.js";
+import { measureCardText, fitCardText, paintCardText, fitCardRows } from "./wallpaper-card-layout.js";
 
 const ext = globalThis.chrome ?? globalThis.browser;
 const STORAGE_KEY = "timoraft-state-v1";
@@ -557,7 +558,7 @@ function migrateWallpaperDesigns(input) {
 }
 
 function wallpaperColumnCount(options, dayCount) {
-  if (options.layout === "agenda") return 1;
+  if (options.layout === "agenda") return Math.min(isPhoneRatio(options.ratio) ? 1 : 2, dayCount);
   if (options.layout === "split") return Math.min(2, dayCount);
   if (isPhoneRatio(options.ratio)) return Math.min(2, dayCount);
   if (options.ratio === "4:3" || options.ratio === "1:1") return Math.min(3, dayCount);
@@ -584,8 +585,9 @@ function gridCardMinimumMinutes(options) {
 
 function neonTimeRange(entries, options = null) {
   const meetings = entries.flatMap((entry) => entry.meetings || []);
+  const earliest = meetings.length ? Math.min(...meetings.map((meeting) => meeting.start)) : 7 * 60;
   const latest = meetings.length ? Math.max(...meetings.map((meeting) => meeting.end)) : 19 * 60;
-  return { start: 7 * 60, end: Math.min(21 * 60, Math.max(19 * 60, Math.ceil((latest + 60) / 60) * 60)) };
+  return { start: Math.min(7 * 60, Math.floor(earliest / 60) * 60), end: Math.max(19 * 60, Math.ceil(latest / 60) * 60) };
 }
 
 function elasticGridAxis(entries, group, range, options) {
@@ -863,44 +865,49 @@ function pastelGridPreviewMarkup(entries, days, options) {
   </div>`;
 }
 
-function renderWallpaperPreview() {
-  const options = state.wallpaper;
+let wallpaperPreviewRevision = 0;
+async function renderWallpaperPreview() {
+  const revision = ++wallpaperPreviewRevision;
+  const options = { ...state.wallpaper };
   const preview = $("#wallpaperPreview");
   const ratioClass = isPhoneRatio(options.ratio) ? "portrait" : options.ratio === "1:1" ? "square" : options.ratio === "4:3" ? "tablet" : "desktop";
   preview.className = `wallpaper-preview ${ratioClass} layout-${options.layout}`;
   preview.style.aspectRatio = options.ratio.replace(":", "/");
-  const days = visibleDays(options.showSunday);
+  let status = $("#wallpaperFitStatus");
+  if (!status) {
+    status = document.createElement("p");
+    status.id = "wallpaperFitStatus"; status.className = "wallpaper-control-hint";
+    status.setAttribute("role", "status");
+    preview.parentElement.insertAdjacentElement("afterend", status);
+  }
   const entries = resolvedWallpaperEntries();
-  if (options.layout === "reference-dark") {
-    const activeDays = days.filter((day) => entries.some((entry) => entry.meetings.some((meeting) => meeting.day === day)));
+  const fitHint = $("#wallpaperTextScaleHint");
+  fitHint.textContent = "Card heights and the time grid adjust to fit the selected text and details.";
+  if (options.layout === "reference-dark" && isPhoneRatio(options.ratio)) {
     const referenceOptions = { ...options, showTimes: true, showRooms: true, showProfessors: true, showBreaks: true, referenceFormatting: true };
-    preview.innerHTML = isPhoneRatio(options.ratio) ? referencePhonePreviewMarkup(entries, days, referenceOptions) : neonGridPreviewMarkup(entries, activeDays.length ? activeDays : days, referenceOptions);
+    preview.innerHTML = referencePhonePreviewMarkup(entries, visibleDays(options.showSunday), referenceOptions);
+    status.hidden = true;
+    if (preview.querySelector('[data-fit-limited="true"]')) {
+      fitHint.textContent = "All card details are fitted to this phone size. For larger text, choose a taller phone or reduce lock-screen clock space.";
+    }
     return;
   }
-  if (options.layout === "neon-grid") {
-    preview.innerHTML = neonGridPreviewMarkup(entries, days, options);
-    return;
+  try {
+    const canvas = await renderWallpaperCanvas(options, entries, visibleDays(options.showSunday));
+    if (revision !== wallpaperPreviewRevision) return;
+    canvas.style.cssText = "display:block;width:100%;height:100%";
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", `${options.title || "Weekly schedule"} wallpaper. ${entries.map((entry) => `${wallpaperCourseCode(entry)} ${entry.section || ""}: ${entry.meetings.map((meet) => `${DAY_NAMES[meet.day]} ${formatTime(meet.start)}–${formatTime(meet.end)}, room ${meetingRoom(entry, meet) || "TBA"}, ${meetingProfessor(entry, meet) || "TBA"}`).join("; ")}`).join(". ")}`);
+    preview.replaceChildren(canvas);
+    const fitted = (canvas.wallpaperReport?.minFactor ?? 1) < .97;
+    status.textContent = fitted ? "All selected details are included. This design is full, so text is fitted to the canvas. For larger text, reduce clock space or choose a taller size or a board layout." : "";
+    status.hidden = !fitted;
+  } catch (error) {
+    if (revision !== wallpaperPreviewRevision) return;
+    status.hidden = false;
+    status.textContent = "The wallpaper preview could not be rendered. Try a different layout or background image.";
+    console.error(error);
   }
-  if (options.layout === "pastel-grid") {
-    preview.innerHTML = pastelGridPreviewMarkup(entries, days, options);
-    return;
-  }
-  const image = safeImageData(options.image);
-  const backgroundImage = image ? `linear-gradient(${options.angle}deg, ${hexToRgba(options.bgA, .82)}, ${hexToRgba(options.bgB, .82)}), url(${image})` : `linear-gradient(${options.angle}deg, ${options.bgA}, ${options.bgB})`;
-  const columns = wallpaperColumnCount(options, days.length);
-  const rows = Math.ceil(days.length / columns);
-  const maxEvents = Math.max(1, ...days.map((day) => entries.reduce((sum, entry) => sum + entry.meetings.filter((meeting) => meeting.day === day).length, 0)));
-  const density = Math.max(.66, Math.min(1, 4 / maxEvents)) * options.contentScale / 100;
-  const daysMarkup = options.layout === "timeline"
-    ? days.map((day) => wallpaperTimelineDayMarkup(entries, day, options)).join("")
-    : days.map((day) => {
-      const meetings = entries.flatMap((entry) => entry.meetings.filter((meeting) => meeting.day === day).sort((a, b) => a.start - b.start).map((meet) => ({ entry, meet })));
-      return `<section class="wallpaper-day${meetings.length > 4 ? " dense" : ""}"><h4>${DAY_NAMES[day]}</h4><div class="wallpaper-events" style="--event-count:${Math.max(1, meetings.length)}">${meetings.map(({ entry, meet }) => wallpaperEventMarkup(entry, meet, options)).join("")}</div></section>`;
-    }).join("");
-  preview.innerHTML = `<div class="wallpaper-inner layout-${options.layout} font-${options.font}" style="background-image:${backgroundImage};--wallpaper-text:${options.textColor};--wallpaper-cols:${columns};--wallpaper-rows:${rows};--clock-space:${options.clockSpace}%;--card-scale:${density};--type-scale:${options.textScale / 100}">
-    ${isPhoneRatio(options.ratio) ? `<div class="phone-clock-safe" aria-hidden="true"></div>` : ""}
-    <header class="wallpaper-title"><div><h3>${escapeHtml(options.title)}</h3><p>${escapeHtml(options.subtitle)}</p></div>${options.showWatermark ? `<div class="wallpaper-mark">timoraft</div>` : ""}</header>
-    <div class="wallpaper-days">${daysMarkup}</div></div>`;
 }
 
 function renderWallpaper() {
@@ -1720,142 +1727,133 @@ function drawFittedCanvasDetails(ctx, fields, left, top, width, bottom, preferre
   });
 }
 
-function drawWallpaperCanvasCard(ctx, entry, meeting, options, left, top, width, height, unit) {
-  const theme = wallpaperCardTheme(entry.displayColor || entry.color, options);
-  const radius = Math.max(0, options.radius * unit / 900);
-  const scale = options.contentScale / 100;
-  const typeScale = options.textScale / 100;
+function wallpaperCardFields(entry, meet, options) {
+  return {
+    code: wallpaperCourseCode(entry), section: String(entry.section || ""),
+    time: options.showTimes ? `${formatTime(meet.start)}–${formatTime(meet.end)}` : "",
+    room: options.showRooms ? String(meetingRoom(entry, meet) || "TBA") : "",
+    professor: options.showProfessors ? String(meetingProfessor(entry, meet) || "TBA") : "",
+  };
+}
+
+function wallpaperTextStyle(options, unit) {
+  return { unit, scale: options.contentScale / 100 * options.textScale / 100, family: fontStack(options.font) };
+}
+
+function drawMeasuredWallpaperCard(ctx, entry, meet, options, left, top, width, height, unit, kind = "standard") {
+  const color = safeHex(entry.displayColor || entry.color, "#75f27b");
+  const theme = kind === "neon"
+    ? { fill: hexToRgba(color, .14), border: hexToRgba(color, .5), accent: color, text: "#f0f1ec" }
+    : kind === "pastel"
+      ? { fill: blendHex(color, "#ffffff", .3), border: "rgba(255,255,255,.58)", accent: "#171815", text: "#171815" }
+      : wallpaperCardTheme(color, options);
+  const radius = Math.max(0, Math.min(options.radius * unit / 900, width / 2, height / 2));
   ctx.save();
-  ctx.beginPath(); ctx.rect(left, top, width, height); ctx.clip();
   roundRect(ctx, left, top, width, height, radius);
   if (theme.fill !== "transparent") { ctx.fillStyle = theme.fill; ctx.fill(); }
-  ctx.strokeStyle = theme.border; ctx.lineWidth = Math.max(1, unit * .0012); ctx.stroke();
-  roundRect(ctx, left, top, Math.min(width, Math.max(4, unit * .005)), height, Math.min(radius, unit * .003)); ctx.fillStyle = theme.accent; ctx.fill();
-  const inset = Math.max(5, Math.min(16, Math.round(unit * .012 * scale), height * .18));
-  const usable = Math.max(4, width - inset * 2);
-  let codeSize = Math.max(6, Math.min(Math.round(height * .27), Math.round(unit * .015 * scale * typeScale)));
-  let detailSize = Math.max(5, Math.min(Math.round(codeSize * .76), Math.round(unit * .01 * scale * typeScale)));
-  let y = top + inset * .65;
-  ctx.textBaseline = "top"; ctx.textAlign = "left";
-  const code = wallpaperCourseCode(entry);
-  const section = String(entry.section || "");
-  ctx.font = `700 ${detailSize}px ${fontStack(options.font)}`;
-  let sectionWidth = section ? Math.min(usable * .28, ctx.measureText(section).width) : 0;
-  const codeFont = (size) => `800 ${size}px ${fontStack(options.font)}`;
-  codeSize = fittedCanvasFontSize(ctx, code, Math.max(6, usable - sectionWidth - 8), codeSize, 6, codeFont);
-  if (ctx.measureText(code).width > usable - sectionWidth - 8) {
-    sectionWidth = 0;
-    codeSize = fittedCanvasFontSize(ctx, code, usable, codeSize, 6, codeFont);
+  ctx.strokeStyle = theme.border; ctx.lineWidth = Math.max(.5, unit * .001); ctx.stroke();
+  if (kind !== "pastel") {
+    roundRect(ctx, left, top, Math.min(width * .03, unit * .003), height, Math.min(radius, unit * .003));
+    ctx.fillStyle = theme.accent; ctx.fill();
   }
-  detailSize = Math.min(detailSize, Math.max(5, codeSize * .76));
-  ctx.fillStyle = theme.accent; ctx.font = codeFont(codeSize);
-  ctx.fillText(ellipsizeCanvasText(ctx, code, usable - (sectionWidth ? sectionWidth + 8 : 0)), left + inset, y);
-  if (section && sectionWidth) {
-    ctx.fillStyle = theme.text; ctx.globalAlpha = .62; ctx.font = `700 ${detailSize}px ${fontStack(options.font)}`;
-    ctx.fillText(ellipsizeCanvasText(ctx, section, usable * .28), left + width - inset - sectionWidth, y + Math.max(0, codeSize - detailSize)); ctx.globalAlpha = 1;
-  }
-  y += codeSize * 1.12;
-  const details = [options.showTimes ? `${formatTime(meeting.start)}–${formatTime(meeting.end)}` : "", options.showRooms ? meetingRoom(entry, meeting) || "TBA" : "", options.showProfessors ? meetingProfessor(entry, meeting) || "TBA" : ""].filter(Boolean);
-  drawFittedCanvasDetails(ctx, details.map((text) => ({ text, color: hexToRgba(theme.text, .78) })), left + inset, y, usable, top + height - inset * .35, detailSize, fontStack(options.font));
+  const fields = wallpaperCardFields(entry, meet, options);
+  const layout = fitCardText(ctx, fields, width, height, wallpaperTextStyle(options, unit));
+  paintCardText(ctx, layout, left, top, { text: theme.text, code: kind === "standard" && options.cardStyle === "solid" ? theme.text : theme.accent });
+  const report = ctx.canvas.wallpaperReport ||= { minFactor: 1, cards: [] };
+  report.minFactor = Math.min(report.minFactor, layout.factor);
+  report.cards.push({ fields, left, top, width, height, layout });
   ctx.restore();
+}
+
+function drawWallpaperCanvasCard(ctx, entry, meet, options, left, top, width, height, unit) {
+  drawMeasuredWallpaperCard(ctx, entry, meet, options, left, top, width, height, unit);
+}
+
+// Grow occupied time intervals enough for their wrapped text. Lane assignment
+// uses actual meeting overlap, so larger text never invents extra conflicts.
+function measuredWallpaperGrid(ctx, entries, group, range, options, unit, dayWidth, bodyHeight, laneGap) {
+  const linear = (minute) => (minute - range.start) / (range.end - range.start);
+  const items = group.flatMap((day) => layoutWallpaperGridMeetings(entries, day, range, linear, 0).map((item) => ({ ...item, day })));
+  const points = [...new Set([range.start, range.end,
+    ...Array.from({ length: Math.floor((range.end - range.start) / 60) + 1 }, (_, index) => range.start + index * 60),
+    ...items.flatMap(({ meet }) => [meet.start, meet.end])])].sort((a, b) => a - b);
+  const indices = new Map(points.map((point, index) => [point, index]));
+  const style = wallpaperTextStyle(options, unit);
+  const measure = (factor) => {
+    const sizes = items.map((item) => measureCardText(ctx, wallpaperCardFields(item.entry, item.meet, options), dayWidth / item.laneCount - laneGap, style, factor));
+    const positions = points.map(() => 0);
+    for (let index = 1; index < points.length; index += 1) {
+      positions[index] = positions[index - 1] + bodyHeight * .12 * (points[index] - points[index - 1]) / (range.end - range.start);
+      items.forEach((item, itemIndex) => {
+        if (indices.get(item.meet.end) === index) positions[index] = Math.max(positions[index], positions[indices.get(item.meet.start)] + sizes[itemIndex].height + laneGap);
+      });
+    }
+    return { positions, total: positions.at(-1), factor };
+  };
+  let result = measure(1);
+  if (result.total > bodyHeight) {
+    let low = 0, high = 1;
+    for (let iteration = 0; iteration < 24; iteration += 1) {
+      const middle = (low + high) / 2;
+      if (measure(middle).total <= bodyHeight) low = middle; else high = middle;
+    }
+    result = measure(low);
+  }
+  const extra = Math.max(0, bodyHeight - result.total);
+  const positions = result.positions.map((y, index) => y + extra * linear(points[index]));
+  const position = (minute) => {
+    const clamped = Math.max(range.start, Math.min(range.end, minute));
+    const index = points.findIndex((point) => point >= clamped);
+    if (index <= 0) return 0;
+    const fraction = (clamped - points[index - 1]) / (points[index] - points[index - 1]);
+    return (positions[index - 1] + fraction * (positions[index] - positions[index - 1])) / bodyHeight;
+  };
+  return { position, items: items.map((item) => ({ ...item, top: position(item.meet.start), height: Math.max(0, position(item.meet.end) - position(item.meet.start) - laneGap / bodyHeight) })) };
 }
 
 function drawTimelineWallpaperCanvas(ctx, entries, days, options, metrics) {
   const { width, height, padding, gridTop, footerSpace, unit, textColor } = metrics;
   const columns = wallpaperColumnCount(options, days.length);
-  const rows = Math.ceil(days.length / columns);
-  const gap = Math.round(unit * .014);
+  const rows = Math.ceil(days.length / columns), gap = unit * .014;
   const dayWidth = (width - padding * 2 - gap * (columns - 1)) / columns;
   const dayHeight = (height - gridTop - padding - footerSpace - gap * (rows - 1)) / rows;
-  const startMinute = 7 * 60, endMinute = 21 * 60, minuteSpan = endMinute - startMinute;
+  const range = neonTimeRange(entries);
   days.forEach((day, dayIndex) => {
-    const column = dayIndex % columns, row = Math.floor(dayIndex / columns);
-    const left = padding + column * (dayWidth + gap), dayTop = gridTop + row * (dayHeight + gap);
-    const headingSize = Math.max(10, Math.round(unit * .014));
-    ctx.fillStyle = textColor; ctx.globalAlpha = .7; ctx.font = `650 ${headingSize}px ${fontStack(options.font)}`;
-    ctx.fillText(DAY_NAMES[day].toUpperCase(), left, dayTop + headingSize); ctx.globalAlpha = 1;
+    const left = padding + dayIndex % columns * (dayWidth + gap);
+    const dayTop = gridTop + Math.floor(dayIndex / columns) * (dayHeight + gap);
+    const headingSize = unit * .014;
+    ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = textColor;
+    ctx.font = `650 ${headingSize}px ${fontStack(options.font)}`;
+    ctx.fillText(DAY_NAMES[day].toUpperCase(), left, dayTop + headingSize);
     const trackTop = dayTop + headingSize * 1.75;
     const trackHeight = Math.max(10, dayHeight - headingSize * 2);
+    const laneGap = Math.max(2, unit * .003);
+    const measured = measuredWallpaperGrid(ctx, entries, [day], range, options, unit, dayWidth, trackHeight, laneGap);
+    const position = measured.position;
     ctx.strokeStyle = hexToRgba(textColor, .12); ctx.lineWidth = 1;
-    for (let hour = 0; hour <= 14; hour += 1) {
-      const lineTop = trackTop + trackHeight * hour / 14;
-      ctx.beginPath(); ctx.moveTo(left, lineTop); ctx.lineTo(left + dayWidth, lineTop); ctx.stroke();
+    for (let minute = range.start; minute <= range.end; minute += 60) {
+      const y = trackTop + trackHeight * position(minute);
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + dayWidth, y); ctx.stroke();
     }
     if (options.showBreaks) for (const item of dailyBreaks(entries, day, 30)) {
-      const top = trackTop + (item.start - startMinute) / minuteSpan * trackHeight;
-      const breakHeight = item.minutes / minuteSpan * trackHeight;
+      const top = trackTop + position(item.start) * trackHeight;
+      const breakHeight = (position(item.end) - position(item.start)) * trackHeight;
       ctx.fillStyle = hexToRgba("#e1a62b", .14); ctx.fillRect(left, top, dayWidth, breakHeight);
-      if (breakHeight >= 18) {
-        const size = Math.max(7, Math.min(20, Math.round(breakHeight * .2)));
-        ctx.fillStyle = "#9c6c13"; ctx.font = `700 ${size}px ${fontStack(options.font)}`;
-        const label = `${formatDuration(item.minutes)} BREAK`.toUpperCase();
-        ctx.fillText(ellipsizeCanvasText(ctx, label, dayWidth - 10), left + 5, top + Math.min(breakHeight - 4, size + 5));
+      if (breakHeight > headingSize * 1.5) {
+        ctx.fillStyle = "#9c6c13"; ctx.font = `700 ${headingSize * .75}px ${fontStack(options.font)}`;
+        ctx.fillText(ellipsizeCanvasText(ctx, formatBreakLabel(item.minutes), dayWidth - 10), left + 5, top + breakHeight / 2);
       }
     }
-    const items = layoutMeetingLanes(entries.flatMap((entry) => entry.meetings.filter((meeting) => meeting.day === day).map((meet) => ({ entry, meet }))), { minimumMinutes: Math.round(gridCardMinimumMinutes(options) * 1.2), maxEnd: endMinute });
-    for (const { entry, meet, lane, laneCount, displayEnd } of items) {
-      const laneGap = Math.max(2, unit * .003);
-      const cardWidth = Math.max(4, dayWidth / laneCount - laneGap);
-      const cardLeft = left + lane * dayWidth / laneCount;
-      const top = trackTop + Math.max(0, meet.start - startMinute) / minuteSpan * trackHeight;
-      const cardHeight = Math.max(8, (Math.min(endMinute, displayEnd) - Math.max(startMinute, meet.start)) / minuteSpan * trackHeight);
-      drawWallpaperCanvasCard(ctx, entry, meet, options, cardLeft, top, cardWidth, cardHeight, unit);
+    for (const item of measured.items) {
+      drawWallpaperCanvasCard(ctx, item.entry, item.meet, options,
+        left + item.lane * dayWidth / item.laneCount + laneGap / 2, trackTop + item.top * trackHeight,
+        dayWidth / item.laneCount - laneGap, item.height * trackHeight, unit);
     }
   });
 }
 
 function drawNeonCanvasEvent(ctx, entry, meet, options, left, top, width, height, unit) {
-  const color = safeHex(entry.displayColor || entry.color, "#75f27b");
-  const scale = options.contentScale / 100;
-  const typeScale = options.textScale / 100;
-  const radius = Math.max(4, Math.min(10, unit * .008));
-  ctx.save();
-  ctx.beginPath(); ctx.rect(left, top, width, height); ctx.clip();
-  roundRect(ctx, left + 1, top + 1, Math.max(1, width - 2), Math.max(1, height - 2), radius);
-  ctx.fillStyle = hexToRgba(color, .14); ctx.fill();
-  ctx.strokeStyle = hexToRgba(color, .5); ctx.lineWidth = Math.max(1, unit * .0015); ctx.stroke();
-  roundRect(ctx, left + 1, top + 1, Math.max(3, unit * .004), Math.max(1, height - 2), Math.min(radius, 4));
-  ctx.fillStyle = color; ctx.fill();
-  const inset = Math.max(6, unit * .009);
-  const usable = Math.max(4, width - inset * 2);
-  const titleSize = Math.max(7, Math.min(unit * .0125 * scale * typeScale, height * .22));
-  const detailSize = Math.max(6, Math.min(unit * .009 * scale * typeScale, titleSize * .76));
-  const textLeft = left + inset;
-  let y = top + Math.max(5, height * .08);
-  ctx.textAlign = "left"; ctx.textBaseline = "top";
-  const code = wallpaperCourseCode(entry);
-  const section = String(entry.section || "");
-  ctx.font = `650 ${detailSize}px Bahnschrift, "Arial Narrow", sans-serif`;
-  let sectionWidth = section ? Math.min(usable * .24, ctx.measureText(section).width) : 0;
-  const gap = Math.max(3, detailSize * .5);
-  const codeFont = (size) => `900 ${size}px Bahnschrift, "Arial Narrow", sans-serif`;
-  let codeSize = fittedCanvasFontSize(ctx, code, Math.max(6, usable - sectionWidth - gap), titleSize, 6, codeFont);
-  let codeWidth = ctx.measureText(code).width;
-  if (codeWidth + sectionWidth + gap > usable) {
-    sectionWidth = 0;
-    codeSize = fittedCanvasFontSize(ctx, code, usable, titleSize, 6, codeFont);
-    codeWidth = ctx.measureText(code).width;
-  }
-  ctx.fillStyle = color; ctx.font = codeFont(codeSize); ctx.fillText(code, textLeft, y);
-  const showSection = Boolean(section && sectionWidth);
-  if (showSection) {
-    ctx.fillStyle = "#777a75"; ctx.font = `650 ${detailSize}px Bahnschrift, "Arial Narrow", sans-serif`;
-    ctx.fillText(ellipsizeCanvasText(ctx, section, usable * .25), left + width - inset - sectionWidth, top + Math.max(5, height * .08) + Math.max(0, titleSize - detailSize));
-  }
-  y += codeSize * 1.12;
-  y += Math.max(2, height * .035);
-  const fields = options.referenceFormatting
-    ? [
-      { text: meetingRoom(entry, meet) || "TBA", color: "#e7e8e3" },
-      { text: `${formatTime(meet.start)}–${formatTime(meet.end)}`, color: "#d8dad5" },
-      { text: meetingProfessor(entry, meet) || "TBA", color: "#a4a7a1" },
-    ]
-    : [
-      { text: options.showTimes ? `${formatTime(meet.start)}–${formatTime(meet.end)}` : "", color: "#d8dad5" },
-      { text: [options.showRooms ? meetingRoom(entry, meet) || "TBA" : "", options.showProfessors ? meetingProfessor(entry, meet) || "TBA" : ""].filter(Boolean).join(" · "), color: "#a4a7a1" },
-    ];
-  drawFittedCanvasDetails(ctx, fields, textLeft, y, usable, top + height - 3, detailSize, 'Bahnschrift, "Arial Narrow", sans-serif');
-  ctx.restore();
+  drawMeasuredWallpaperCard(ctx, entry, meet, options, left, top, width, height, unit, "neon");
 }
 
 function drawNeonWallpaperCanvas(ctx, width, height, entries, days, options) {
@@ -1891,13 +1889,15 @@ function drawNeonWallpaperCanvas(ctx, width, height, entries, days, options) {
     ctx.fillText(ellipsizeCanvasText(ctx, options.subtitle, pillWidth - subtitleSize * 1.4), paddingX + width * .055 + subtitleSize * .7, titleTop + titleSize + subtitleSize * .65 + pillHeight / 2);
   }
   groups.forEach((group, groupIndex) => {
-    const position = elasticGridAxis(entries, group, range, options);
     const groupTop = groupAreaTop + groupIndex * (groupHeight + groupGap);
     const headHeight = Math.max(22, groupHeight * (portrait ? .09 : groups.length > 1 ? .1 : .09));
     const bodyTop = groupTop + headHeight;
     const bodyHeight = groupHeight - headHeight;
     const railWidth = Math.max(48, (width - paddingX * 2) * (portrait ? .115 : groups.length > 1 ? .085 : .06));
     const dayWidth = (width - paddingX * 2 - railWidth) / group.length;
+    const laneGap = Math.max(2, unit * .003);
+    const measured = measuredWallpaperGrid(ctx, entries, group, range, options, unit, dayWidth, bodyHeight, laneGap);
+    const position = measured.position;
     ctx.fillStyle = "#0b0c0b"; ctx.fillRect(paddingX, groupTop, width - paddingX * 2, headHeight);
     ctx.strokeStyle = "#151715"; ctx.lineWidth = 1;
     ctx.strokeRect(paddingX, groupTop, width - paddingX * 2, groupHeight);
@@ -1911,11 +1911,12 @@ function drawNeonWallpaperCanvas(ctx, width, height, entries, days, options) {
     ctx.textAlign = "right"; ctx.fillStyle = "#747772";
     const timeSize = Math.max(8, Math.min(22, Math.round(unit * .011 * options.contentScale / 100)));
     ctx.font = `750 ${timeSize}px Bahnschrift, "Arial Narrow", sans-serif`;
+    let lastLabelY = -Infinity;
     for (let hour = 0; hour <= hourCount; hour += 1) {
       const y = bodyTop + bodyHeight * position(range.start + hour * 60);
       ctx.strokeStyle = "#111311"; ctx.beginPath(); ctx.moveTo(paddingX, y); ctx.lineTo(width - paddingX, y); ctx.stroke();
       const labelY = Math.max(bodyTop + timeSize / 2, Math.min(bodyTop + bodyHeight - timeSize / 2, y));
-      ctx.fillText(formatHourLabel(range.start + hour * 60), paddingX + railWidth - Math.max(5, unit * .007), labelY);
+      if (labelY - lastLabelY >= timeSize * 1.3) { ctx.fillText(formatHourLabel(range.start + hour * 60), paddingX + railWidth - Math.max(5, unit * .007), labelY); lastLabelY = labelY; }
     }
     group.forEach((day, dayIndex) => {
       const dayLeft = paddingX + railWidth + dayIndex * dayWidth;
@@ -1932,13 +1933,12 @@ function drawNeonWallpaperCanvas(ctx, width, height, entries, days, options) {
           ctx.fillText(ellipsizeCanvasText(ctx, formatBreakLabel(item.minutes), dayWidth - 10), dayLeft + dayWidth / 2, top + breakHeight / 2);
         }
       }
-      const items = layoutWallpaperGridMeetings(entries, day, range, position, gridCardMinimumFraction(options, groups.length, "neon"));
+      const items = measured.items.filter((item) => item.day === day);
       for (const { entry, meet, lane, laneCount, top, height: eventHeight } of items) {
-        const laneGap = Math.max(2, unit * .003);
         const cardWidth = dayWidth / laneCount - laneGap;
         const cardLeft = dayLeft + lane * dayWidth / laneCount + laneGap / 2;
         const cardTop = bodyTop + top * bodyHeight;
-        const cardHeight = Math.max(10, eventHeight * bodyHeight);
+        const cardHeight = eventHeight * bodyHeight;
         drawNeonCanvasEvent(ctx, entry, meet, options, cardLeft, cardTop, cardWidth, cardHeight, unit);
       }
       ctx.restore();
@@ -1957,49 +1957,7 @@ function drawNeonWallpaperCanvas(ctx, width, height, entries, days, options) {
 }
 
 function drawPastelCanvasEvent(ctx, entry, meet, options, left, top, width, height, unit) {
-  const fill = blendHex(entry.displayColor || entry.color, "#ffffff", .3);
-  const scale = options.contentScale / 100;
-  const typeScale = options.textScale / 100;
-  const radius = Math.max(5, Math.min(13, unit * .011));
-  ctx.save();
-  ctx.beginPath(); ctx.rect(left, top, width, height); ctx.clip();
-  ctx.shadowColor = "rgba(0,0,0,.18)"; ctx.shadowBlur = Math.max(2, unit * .006); ctx.shadowOffsetY = Math.max(1, unit * .002);
-  roundRect(ctx, left + 1, top + 1, Math.max(1, width - 2), Math.max(1, height - 2), radius);
-  ctx.fillStyle = fill; ctx.fill(); ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "rgba(255,255,255,.58)"; ctx.lineWidth = Math.max(1, unit * .0013); ctx.stroke();
-  const inset = Math.max(6, Math.min(18, unit * .011 * scale));
-  const usable = Math.max(4, width - inset * 2);
-  const titleSize = Math.max(7, Math.min(unit * .014 * scale * typeScale, height * .21));
-  const detailSize = Math.max(6, Math.min(unit * .0095 * scale * typeScale, titleSize * .72));
-  const code = wallpaperCourseCode(entry);
-  const family = fontStack(options.font);
-  ctx.textAlign = "left"; ctx.textBaseline = "top";
-  const section = String(entry.section || "");
-  ctx.font = `750 ${detailSize}px ${family}`;
-  let sectionWidth = section ? Math.min(usable * .24, ctx.measureText(section).width) : 0;
-  const gap = Math.max(3, detailSize * .52);
-  const codeFont = (size) => `900 ${size}px ${family}`;
-  let codeSize = fittedCanvasFontSize(ctx, code, Math.max(6, usable - sectionWidth - gap), titleSize, 6, codeFont);
-  let codeWidth = ctx.measureText(code).width;
-  if (codeWidth + sectionWidth + gap > usable) {
-    sectionWidth = 0;
-    codeSize = fittedCanvasFontSize(ctx, code, usable, titleSize, 6, codeFont);
-    codeWidth = ctx.measureText(code).width;
-  }
-  let y = top + inset * .7;
-  ctx.fillStyle = "#171815"; ctx.font = codeFont(codeSize); ctx.fillText(code, left + inset, y);
-  const showSection = Boolean(section && sectionWidth);
-  if (showSection) {
-    ctx.globalAlpha = .58; ctx.font = `750 ${detailSize}px ${family}`;
-    ctx.fillText(ellipsizeCanvasText(ctx, section, usable * .25), left + width - inset - sectionWidth, top + inset * .8); ctx.globalAlpha = 1;
-  }
-  y += codeSize * 1.12;
-  const place = [options.showRooms ? meetingRoom(entry, meet) || "TBA" : "", options.showProfessors ? meetingProfessor(entry, meet) || "TBA" : ""].filter(Boolean).join(" · ");
-  drawFittedCanvasDetails(ctx, [
-    { text: options.showTimes ? `${formatTime(meet.start)}–${formatTime(meet.end)}` : "", color: "rgba(23,24,21,.72)" },
-    { text: place, color: "rgba(23,24,21,.68)" },
-  ], left + inset, y, usable, top + height - inset * .3, detailSize, family);
-  ctx.restore();
+  drawMeasuredWallpaperCard(ctx, entry, meet, options, left, top, width, height, unit, "pastel");
 }
 
 function drawPastelWallpaperCanvas(ctx, width, height, entries, days, options) {
@@ -2016,13 +1974,15 @@ function drawPastelWallpaperCanvas(ctx, width, height, entries, days, options) {
   const groupHeight = (groupAreaHeight - groupGap * Math.max(0, groups.length - 1)) / groups.length;
   ctx.fillStyle = "#1d1f1c"; ctx.fillRect(0, 0, width, height);
   groups.forEach((group, groupIndex) => {
-    const position = elasticGridAxis(entries, group, range, options);
     const groupTop = clockSpace + groupIndex * (groupHeight + groupGap);
     const headerHeight = Math.max(28, groupHeight * (portrait ? .09 : .085));
     const bodyTop = groupTop + headerHeight;
     const bodyHeight = groupHeight - headerHeight;
     const railWidth = Math.max(52, width * (portrait ? .13 : groups.length > 1 ? .085 : .056));
     const dayWidth = (width - railWidth) / group.length;
+    const laneGap = Math.max(2, unit * .003);
+    const measured = measuredWallpaperGrid(ctx, entries, group, range, options, unit, dayWidth, bodyHeight, laneGap);
+    const position = measured.position;
     ctx.fillStyle = "#20221f"; ctx.fillRect(0, groupTop, width, headerHeight);
     ctx.strokeStyle = "#343631"; ctx.lineWidth = 1; ctx.strokeRect(0, groupTop, width, groupHeight);
     const daySize = Math.max(10, Math.min(28, unit * .014 * options.contentScale / 100));
@@ -2039,11 +1999,13 @@ function drawPastelWallpaperCanvas(ctx, width, height, entries, days, options) {
     });
     const timeSize = Math.max(8, Math.min(22, unit * .0098 * options.contentScale / 100));
     ctx.textAlign = "right"; ctx.font = `700 ${timeSize}px "Cascadia Mono", Consolas, monospace`;
+    let lastLabelY = -Infinity;
     for (let hour = 0; hour <= hourCount; hour += 1) {
       const y = bodyTop + bodyHeight * position(range.start + hour * 60);
       ctx.strokeStyle = "#343631"; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
       const labelY = Math.max(bodyTop + timeSize / 2, Math.min(bodyTop + bodyHeight - timeSize / 2, y));
-      ctx.fillStyle = "#a8aaa5"; ctx.fillText(formatTime(range.start + hour * 60), railWidth - Math.max(7, unit * .008), labelY);
+      ctx.fillStyle = "#a8aaa5";
+      if (labelY - lastLabelY >= timeSize * 1.3) { ctx.fillText(formatTime(range.start + hour * 60), railWidth - Math.max(7, unit * .008), labelY); lastLabelY = labelY; }
     }
     group.forEach((day, dayIndex) => {
       const dayLeft = railWidth + dayIndex * dayWidth;
@@ -2059,13 +2021,12 @@ function drawPastelWallpaperCanvas(ctx, width, height, entries, days, options) {
           ctx.fillText(ellipsizeCanvasText(ctx, formatBreakLabel(item.minutes), dayWidth - 12), dayLeft + dayWidth / 2, top + breakHeight / 2);
         }
       }
-      const items = layoutWallpaperGridMeetings(entries, day, range, position, gridCardMinimumFraction(options, groups.length, "pastel"));
+      const items = measured.items.filter((item) => item.day === day);
       for (const { entry, meet, lane, laneCount, top, height: eventHeight } of items) {
-        const laneGap = Math.max(4, unit * .005);
         const cardWidth = dayWidth / laneCount - laneGap;
         const cardLeft = dayLeft + lane * dayWidth / laneCount + laneGap / 2;
         const cardTop = bodyTop + top * bodyHeight;
-        const cardHeight = Math.max(12, eventHeight * bodyHeight);
+        const cardHeight = eventHeight * bodyHeight;
         drawPastelCanvasEvent(ctx, entry, meet, options, cardLeft, cardTop, cardWidth, cardHeight, unit);
       }
       ctx.restore();
@@ -2084,30 +2045,25 @@ function triggerWallpaperDownload(canvas, width, height, options) {
   const link = document.createElement("a"); link.download = `timoraft-${options.ratio.replace(":", "x")}.png`; link.href = canvas.toDataURL("image/png"); link.click(); toast("Wallpaper downloaded");
 }
 
-async function downloadWallpaper() {
-  const options = state.wallpaper;
+async function renderWallpaperCanvas(options, entries, days) {
   const [width, height] = WALLPAPER_EXPORT_SIZES[options.ratio];
   const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext("2d");
-  const days = visibleDays(options.showSunday);
-  const entries = resolvedWallpaperEntries();
+  canvas.wallpaperReport = { minFactor: 1, cards: [] };
   if (options.layout === "reference-dark") {
     const activeDays = days.filter((day) => entries.some((entry) => entry.meetings.some((meeting) => meeting.day === day)));
     const referenceOptions = { ...options, showTimes: true, showRooms: true, showProfessors: true, showBreaks: true, referenceFormatting: true };
     if (isPhoneRatio(options.ratio)) drawReferencePhoneCanvas(ctx, width, height, entries, days, referenceOptions);
     else drawNeonWallpaperCanvas(ctx, width, height, entries, activeDays.length ? activeDays : days, referenceOptions);
-    triggerWallpaperDownload(canvas, width, height, options);
-    return;
+    return canvas;
   }
   if (options.layout === "neon-grid") {
     drawNeonWallpaperCanvas(ctx, width, height, entries, days, options);
-    triggerWallpaperDownload(canvas, width, height, options);
-    return;
+    return canvas;
   }
   if (options.layout === "pastel-grid") {
     drawPastelWallpaperCanvas(ctx, width, height, entries, days, options);
-    triggerWallpaperDownload(canvas, width, height, options);
-    return;
+    return canvas;
   }
   const isPortrait = height > width * 1.2;
   const unit = Math.min(width, height);
@@ -2136,39 +2092,53 @@ async function downloadWallpaper() {
   const dayWidth = (width - padding * 2 - gap * (columns - 1)) / columns;
   const dayHeight = (height - gridTop - padding - footerSpace - gap * (rows - 1)) / rows;
   if (options.layout === "timeline") drawTimelineWallpaperCanvas(ctx, entries, days, options, { width, height, padding, gridTop, footerSpace, unit, textColor });
-  else days.forEach((day, dayIndex) => {
-    const column = dayIndex % columns;
-    const row = Math.floor(dayIndex / columns);
-    const left = padding + column * (dayWidth + gap);
-    const dayTop = gridTop + row * (dayHeight + gap);
-    const panelInset = Math.max(5, Math.round(unit * .008));
-    const panelRadius = Math.max(8, Math.round(unit * .012));
-    roundRect(ctx, left, dayTop, dayWidth, dayHeight, panelRadius);
-    ctx.fillStyle = hexToRgba(textColor, options.layout === "compact-grid" ? .025 : .045); ctx.fill();
-    ctx.strokeStyle = hexToRgba(textColor, .11); ctx.lineWidth = 1; ctx.stroke();
-    const headingSize = Math.max(11, Math.round(unit * .014 * options.contentScale / 100));
-    ctx.fillStyle = textColor; ctx.globalAlpha = .7; ctx.font = `760 ${headingSize}px ${fontStack(options.font)}`;
-    ctx.fillText(DAY_NAMES[day].toUpperCase(), left + panelInset, dayTop + panelInset + headingSize); ctx.globalAlpha = 1;
-    const meetings = entries.flatMap((entry) => entry.meetings.filter((meeting) => meeting.day === day).map((meeting) => ({ entry, meeting }))).sort((a, b) => a.meeting.start - b.meeting.start);
-    const cardsLeft = left + panelInset;
-    const cardsWidth = Math.max(4, dayWidth - panelInset * 2);
-    const cardsTop = dayTop + panelInset + headingSize * 1.55;
-    const available = Math.max(8, dayHeight - (cardsTop - dayTop) - panelInset);
-    const cardGap = meetings.length ? Math.min(Math.max(2, Math.round(unit * .008)), available / Math.max(1, meetings.length * 9)) : 0;
-    const idealHeight = (options.layout === "agenda" ? unit * .065 : unit * (isPortrait ? .078 : .07)) * options.contentScale / 100 * options.textScale / 100;
-    const fitHeight = meetings.length ? (available - cardGap * Math.max(0, meetings.length - 1)) / meetings.length : 0;
-    const cardHeight = meetings.length ? Math.max(5, Math.min(idealHeight, fitHeight)) : 0;
-    let top = cardsTop;
-    for (const { entry, meeting } of meetings) {
-      drawWallpaperCanvasCard(ctx, entry, meeting, options, cardsLeft, top, cardsWidth, cardHeight, unit);
-      top += cardHeight + cardGap;
+  else {
+    const panelInset = unit * .008;
+    const headingSize = unit * .014 * options.contentScale / 100;
+    const cardGap = unit * .005;
+    const dayItems = days.map((day) => entries.flatMap((entry) => entry.meetings.filter((meet) => meet.day === day).map((meet) => ({ entry, meet }))).sort((a, b) => a.meet.start - b.meet.start));
+    const headerHeight = panelInset * 2 + headingSize * 1.55;
+    const fit = fitCardRows(ctx, dayItems.map((items) => items.map(({ entry, meet }) => wallpaperCardFields(entry, meet, options))),
+      columns, dayWidth - panelInset * 2, height - gridTop - padding - footerSpace,
+      wallpaperTextStyle(options, unit), headerHeight, gap, cardGap);
+    let rowTop = gridTop;
+    for (let row = 0; row < fit.rows.length; row += 1) {
+      for (let column = 0; column < columns; column += 1) {
+        const dayIndex = row * columns + column;
+        if (dayIndex >= days.length) break;
+        const left = padding + column * (dayWidth + gap);
+        roundRect(ctx, left, rowTop, dayWidth, fit.rows[row], unit * .012);
+        ctx.fillStyle = hexToRgba(textColor, options.layout === "compact-grid" ? .025 : .045); ctx.fill();
+        ctx.strokeStyle = hexToRgba(textColor, .11); ctx.lineWidth = 1; ctx.stroke();
+        ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; ctx.fillStyle = textColor;
+        ctx.font = `760 ${headingSize}px ${fontStack(options.font)}`;
+        ctx.fillText(DAY_NAMES[days[dayIndex]].toUpperCase(), left + panelInset, rowTop + panelInset + headingSize);
+        let top = rowTop + panelInset + headingSize * 1.55;
+        dayItems[dayIndex].forEach(({ entry, meet }, index) => {
+          const cardHeight = fit.measured[dayIndex][index].height;
+          drawWallpaperCanvasCard(ctx, entry, meet, options, left + panelInset, top, dayWidth - panelInset * 2, cardHeight, unit);
+          top += cardHeight + cardGap;
+        });
+      }
+      rowTop += fit.rows[row] + gap;
     }
-  });
+  }
   if (options.showWatermark) {
     ctx.fillStyle = textColor; ctx.globalAlpha = .48; ctx.font = `600 ${Math.max(13, Math.round(unit * .013))}px ${fontStack(options.font)}`;
     const mark = "timoraft"; ctx.fillText(mark, width - padding - ctx.measureText(mark).width, height - padding * .45); ctx.globalAlpha = 1;
   }
-  triggerWallpaperDownload(canvas, width, height, options);
+  return canvas;
+}
+
+async function downloadWallpaper() {
+  try {
+    const options = { ...state.wallpaper };
+    const canvas = await renderWallpaperCanvas(options, resolvedWallpaperEntries(), visibleDays(options.showSunday));
+    triggerWallpaperDownload(canvas, canvas.width, canvas.height, options);
+  } catch (error) {
+    console.error(error);
+    toast("Wallpaper could not be exported. Please try again.");
+  }
 }
 
 function roundRect(ctx, x, y, width, height, radius) {

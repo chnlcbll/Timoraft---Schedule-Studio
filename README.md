@@ -83,12 +83,16 @@ Slottle.
 - Reference dark adds a lock-screen-friendly two-column card board on phone
   exports and a black time-grid on wider exports. It includes code, section,
   time, room, and professor, and uses each person's color in merged schedules.
-  Increasing its card-text size also grows its class cards and expands the
-  phone panel while retaining lock-screen space, keeping details inside their
-  cards in both the live preview and exported PNG.
+  Card heights are measured from the full code, section, time, room, and
+  professor text. Room and professor each have a labeled line; long details
+  wrap. Days stack independently in two columns to avoid wasting space on
+  dense merged schedules. Preview and PNG share the same measured drawing.
+  When the selected phone size reaches its capacity, the controls explain how
+  to make more room for larger text without hiding details.
 - Wallpaper cards use a consistent detail hierarchy for course code, section,
-  time, room, and professor. Dense and merged schedules scale down
-  automatically and are clipped safely inside each day instead of overflowing.
+  time, room, and professor. Measured wrapping determines card heights and
+  occupied time-grid spacing. Dense and merged schedules fit all selected
+  details to the canvas, with a notice when more space is needed for larger text.
 - Local schedule library with load, delete, wallpaper, JSON backup, and JSON
   restore actions.
 - Automatic local persistence through `chrome.storage.local`, with a
